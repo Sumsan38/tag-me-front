@@ -28,13 +28,14 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import { MainLayout } from '@/components/layout';
 
 // TODO(auth-guard): import { useEffect } from 'react';
 // TODO(auth-guard): import { useRouter, usePathname } from 'next/navigation';
 // TODO(auth-guard): import { useAuthStore } from '@/stores/authStore';
 // TODO(auth-guard): import { ROUTES } from '@/constants/routes';
 
-export default function AuthLayout({
+export default function AuthGroupLayout({
   children,
 }: {
   children: ReactNode;
@@ -55,5 +56,5 @@ export default function AuthLayout({
   // }
   // TODO(auth-guard): 인증 가드 끝 ---
 
-  return <>{children}</>;
+  return <MainLayout>{children}</MainLayout>;
 }

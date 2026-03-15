@@ -27,6 +27,7 @@
  */
 
 import type { ReactNode } from 'react';
+import { MainLayout } from '@/components/layout';
 
 // TODO(seo): 공통 Open Graph 기본값 정의
 // export const metadata: Metadata = {
@@ -38,6 +39,5 @@ export default function PublicLayout({
 }: {
   children: ReactNode;
 }) {
-  // TODO(ui): <Header /> 및 <Footer /> 컴포넌트 배치
-  return <>{children}</>;
+  return <MainLayout>{children}</MainLayout>;
 }

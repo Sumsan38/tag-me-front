@@ -62,35 +62,35 @@
 - [x] **계정/권한/라우팅 정책 반영**:
   - Guest / User / Admin 권한 차이에 맞춘 라우트 접근 정책 확정
   - 공개 라우트와 인증 라우트 URL 매핑을 `DevDock.md` 기준으로 고정
-- [ ] **태그 입력 정책 반영**:
+- [x] **태그 입력 정책 반영**:
   - 입력값과 표시값 분리 원칙 반영
   - `#` prefix 표시 규칙, 공백 정리, 중복 태그 방지 규칙 문서화
-- [ ] **Axios 인스턴스 생성** (`api/client.ts`):
+- [x] **Axios 인스턴스 생성** (`api/client.ts`):
   - Base URL: `process.env.NEXT_PUBLIC_API_URL`
   - Request Interceptor: Authorization 헤더에 Access Token 자동 첨부
   - Response Interceptor: 401 응답 시 Refresh Token으로 자동 갱신 후 원래 요청 재시도
   - Envelope 응답 자동 파싱: `response.data.data` 추출
-- [ ] **API 에러 핸들링 유틸** (`api/error.ts`):
+- [x] **API 에러 핸들링 유틸** (`api/error.ts`):
   - 도메인별 에러 코드 매핑 (DIARY_001 → "일기를 찾을 수 없습니다")
   - toast 알림 연동
-- [ ] **React Query 설정** (`providers/QueryProvider.tsx`):
+- [x] **React Query 설정** (`providers/QueryProvider.tsx`):
   - `QueryClientProvider` 래퍼 컴포넌트
   - 기본 staleTime, cacheTime 설정
   - 에러 바운더리 연동
-- [ ] **인증 상태 관리** (`stores/authStore.ts`):
+- [x] **인증 상태 관리** (`stores/authStore.ts`):
   - Access Token 메모리 저장 (Zustand)
   - 로그인/로그아웃 액션
   - 인증 여부 확인 함수
   - provider 정보 및 탈퇴 후 캐시 초기화 흐름 고려
-- [ ] **공통 타입 정의** (`types/common.ts`):
+- [x] **공통 타입 정의** (`types/common.ts`):
   ```typescript
   interface ApiResponse<T> { success: boolean; data: T; error?: ErrorResponse; timestamp: string; }
   interface CursorPage<T> { content: T[]; nextCursor: string | null; hasNext: boolean; }
   interface OffsetPage<T> { content: T[]; totalElements: number; totalPages: number; page: number; }
   ```
-- [ ] **검색/추천/공유 계약 타입 반영**:
+- [x] **검색/추천/공유 계약 타입 반영**:
   - highlight 필드, 추천 결과 정렬 근거, 공유 리포트 식별자 타입 정의
-- [ ] **도메인별 타입 정의 파일 생성**:
+- [x] **도메인별 타입 정의 파일 생성**:
   - `types/auth.ts` — User, LoginRequest, RegisterRequest, TokenResponse
   - `types/diary.ts` — Diary, CreateDiaryRequest, DiaryListFilter
   - `types/feed.ts` — Post, Comment, Like, CreatePostRequest
@@ -99,7 +99,7 @@
   - `types/search.ts` — SearchResult, SearchFilter
   - `types/social.ts` — Circle, Challenge, Follow
   - `types/notification.ts` — Notification, NotificationType
-- [ ] **공통 UI 컴포넌트 기본 구현**:
+- [x] **공통 UI 컴포넌트 기본 구현**:
   - `Button` (primary, secondary, outline, danger 변형)
   - `Input` (텍스트, 비밀번호, 검색)
   - `Modal` (오버레이 + 컨텐츠)
@@ -108,13 +108,13 @@
   - `Badge` (태그 뱃지, 알림 뱃지)
   - `Spinner` / `Skeleton` (로딩 상태)
   - `Toast` (성공/에러/정보 알림)
-- [ ] **레이아웃 컴포넌트 구현**:
+- [x] **레이아웃 컴포넌트 구현**:
   - `Header` — 로고, 검색바, 알림 아이콘, 프로필 메뉴
   - `BottomNavigation` — 홈(피드), 일기, 마인드맵, 알림, 프로필 (모바일 대응)
   - `Sidebar` — 데스크탑 네비게이션
   - `AuthLayout` — 로그인/회원가입 전용 레이아웃
   - `MainLayout` — 인증 후 메인 레이아웃 (Header + Sidebar/BottomNav + Content)
-- [ ] **라우트 그룹 및 렌더링 전략 확정**:
+- [x] **라우트 그룹 및 렌더링 전략 확정**:
   - 공개 라우트: `/feed`, `/users/[id]`, `/trending`, `/challenges/[id]`, `/circles/[id]`
   - 인증 라우트: `/diary`, `/mindmap`, `/search`, `/notifications`, `/mypage`
   - SSR/CSR/ISR 정책을 `DevDock.md` 기준으로 경로별 명시

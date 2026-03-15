@@ -21,6 +21,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import { AuthLayout } from '@/components/layout';
 
 // TODO(auth-guard): import { useEffect } from 'react';
 // TODO(auth-guard): import { useRouter } from 'next/navigation';
@@ -47,5 +48,5 @@ export default function GuestLayout({
   // }
   // TODO(auth-guard): 인증 가드 끝 ---
 
-  return <>{children}</>;
+  return <AuthLayout>{children}</AuthLayout>;
 }

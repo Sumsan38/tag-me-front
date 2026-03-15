@@ -1,0 +1,657 @@
+import { useState } from "react";
+
+// ── Design Tokens ─────────────────────────────────────────
+const T = {
+  bg: "#FAFAF8",
+  surface: "#FFFFFF",
+  border: "#EBEBEA",
+  borderHover: "#D4D4D0",
+  text: "#1A1A18",
+  sub: "#6B6B68",
+  muted: "#A8A8A4",
+  accent: "#2D5BE3",
+  accentBg: "#EEF2FD",
+  green: "#18A058",
+  greenBg: "#EDFAF3",
+  red: "#E8445A",
+  redBg: "#FEF0F2",
+  amber: "#D97706",
+  amberBg: "#FFFBEB",
+  tag1: "#5B5BD6", tag1Bg: "#EFEFFD",
+  tag2: "#C026D3", tag2Bg: "#FDF4FF",
+  tag3: "#0891B2", tag3Bg: "#ECFEFF",
+  tag4: "#059669", tag4Bg: "#ECFDF5",
+  tag5: "#EA580C", tag5Bg: "#FFF7ED",
+  tag6: "#7C3AED", tag6Bg: "#F5F3FF",
+};
+
+const tagPalette = [
+  [T.tag1, T.tag1Bg],[T.tag2, T.tag2Bg],[T.tag3, T.tag3Bg],
+  [T.tag4, T.tag4Bg],[T.tag5, T.tag5Bg],[T.tag6, T.tag6Bg],
+];
+
+const font = "'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif";
+
+function Tag({ label, idx = 0, sm }) {
+  const [fg, bg] = tagPalette[idx % tagPalette.length];
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center",
+      background: bg, color: fg,
+      fontSize: sm ? 11 : 12, fontWeight: 500,
+      padding: sm ? "2px 8px" : "3px 10px",
+      borderRadius: 6, letterSpacing: "-0.01em",
+    }}>#{label}</span>
+  );
+}
+
+function Divider() {
+  return <div style={{ height: 1, background: T.border, margin: "0 20px" }} />;
+}
+
+function SectionTitle({ children }) {
+  return (
+    <div style={{ color: T.muted, fontSize: 11, fontWeight: 600,
+      letterSpacing: "0.06em", textTransform: "uppercase",
+      padding: "18px 20px 8px" }}>
+      {children}
+    </div>
+  );
+}
+
+// ── Avatar ─────────────────────────────────────────────────
+function Avatar({ emoji = "🦊", size = 32, bg = "#F0EFFF" }) {
+  return (
+    <div style={{ width: size, height: size, borderRadius: "50%",
+      background: bg, display: "flex", alignItems: "center",
+      justifyContent: "center", fontSize: size * 0.44, flexShrink: 0 }}>
+      {emoji}
+    </div>
+  );
+}
+
+// ── SCREEN 1: 홈 / 피드 ────────────────────────────────────
+function HomeScreen() {
+  const [liked, setLiked] = useState({ 2: true });
+  const [tab, setTab] = useState("팔로우");
+
+  const posts = [
+    {
+      id: 1, emoji: "🐻", emojiBg: "#FFF7ED", user: "조용한숲", time: "3분 전",
+      content: "번아웃이 왔나봐. 아무것도 하기 싫은데 이 앱 켜는 건 왜 하게 되지.",
+      tags: ["번아웃", "일상", "감정"], tIdx: [0, 1, 2], likes: 47, comments: 13,
+    },
+    {
+      id: 2, emoji: "🌸", emojiBg: "#FDF4FF", user: "봄날기록", time: "21분 전",
+      content: "오늘 제주 올레길 걸었다. 바람이 차가웠는데 이상하게 마음은 따뜻했어.",
+      tags: ["여행", "제주", "산책"], tIdx: [3, 2, 4], likes: 24, comments: 6,
+    },
+    {
+      id: 3, emoji: "☕", emojiBg: "#FFFBEB", user: "카페라떼", time: "1시간 전",
+      content: "카페에서 세 시간. 읽은 것보다 멍한 시간이 더 좋았다.",
+      tags: ["카페", "독서", "여유"], tIdx: [5, 3, 1], likes: 31, comments: 4,
+    },
+  ];
+
+  return (
+    <div style={{ background: T.bg, minHeight: "100%", fontFamily: font }}>
+      {/* Header */}
+      <div style={{ background: T.surface, padding: "16px 20px 0",
+        borderBottom: `1px solid ${T.border}` }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+          <span style={{ fontSize: 17, fontWeight: 700, color: T.text, letterSpacing: "-0.03em" }}>피드</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ background: T.greenBg, color: T.green, fontSize: 12, fontWeight: 600,
+              padding: "4px 10px", borderRadius: 20 }}>🔥 7일</div>
+            <Avatar emoji="🦊" size={30} />
+          </div>
+        </div>
+        {/* Tab */}
+        <div style={{ display: "flex", gap: 0 }}>
+          {["팔로우", "전체"].map(t => (
+            <button key={t} onClick={() => setTab(t)} style={{
+              flex: 1, background: "none", border: "none", cursor: "pointer",
+              padding: "8px 0", fontSize: 13, fontWeight: 600, fontFamily: font,
+              color: tab === t ? T.text : T.muted,
+              borderBottom: `2px solid ${tab === t ? T.text : "transparent"}`,
+            }}>{t}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* Today Prompt */}
+      <div style={{ margin: "12px 16px", background: T.accentBg,
+        borderRadius: 12, padding: "12px 14px",
+        display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ fontSize: 20 }}>💭</div>
+        <div>
+          <div style={{ color: T.accent, fontSize: 11, fontWeight: 600, marginBottom: 2 }}>오늘의 프롬프트</div>
+          <div style={{ color: T.text, fontSize: 13 }}><b>#감사</b> — 오늘 작은 것 하나를 기록해보세요</div>
+        </div>
+      </div>
+
+      {/* Trending */}
+      <div style={{ padding: "0 16px 12px" }}>
+        <div style={{ color: T.muted, fontSize: 11, fontWeight: 600,
+          letterSpacing: "0.05em", marginBottom: 8 }}>TODAY'S TAGS</div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {[["번아웃",0],["여행",3],["산책",4],["카페",5],["성장",1],["새벽",2]].map(([t, i]) => (
+            <Tag key={t} label={t} idx={i} sm />
+          ))}
+        </div>
+      </div>
+
+      <Divider />
+
+      {/* Posts */}
+      <div style={{ padding: "8px 0 20px" }}>
+        {posts.map((p, pi) => (
+          <div key={p.id}>
+            <div style={{ padding: "14px 20px" }}>
+              <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+                <Avatar emoji={p.emoji} emojiBg={p.emojiBg} size={34} bg={p.emojiBg} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                    <span style={{ color: T.text, fontSize: 13, fontWeight: 600 }}>{p.user}</span>
+                    <span style={{ color: T.muted, fontSize: 11 }}>{p.time}</span>
+                  </div>
+                  <div style={{ color: T.sub, fontSize: 13, lineHeight: 1.65, marginTop: 5 }}>{p.content}</div>
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 5, marginLeft: 44, marginBottom: 10, flexWrap: "wrap" }}>
+                {p.tags.map((t, i) => <Tag key={t} label={t} idx={p.tIdx[i]} sm />)}
+              </div>
+              <div style={{ display: "flex", gap: 16, marginLeft: 44 }}>
+                <button onClick={() => setLiked(l => ({ ...l, [p.id]: !l[p.id] }))}
+                  style={{ background: "none", border: "none", cursor: "pointer",
+                    color: liked[p.id] ? T.red : T.muted, fontSize: 12,
+                    display: "flex", alignItems: "center", gap: 4, padding: 0, fontFamily: font }}>
+                  <span style={{ fontSize: 14 }}>{liked[p.id] ? "♥" : "♡"}</span>
+                  {p.likes + (liked[p.id] ? 1 : 0)}
+                </button>
+                <span style={{ color: T.muted, fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
+                  <span>💬</span>{p.comments}
+                </span>
+              </div>
+            </div>
+            {pi < posts.length - 1 && <Divider />}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── SCREEN 2: 일기 작성 ────────────────────────────────────
+function DiaryScreen() {
+  const [content, setContent] = useState("오늘 한강을 걸었다. 이어폰 없이 걸었더니 생각이 정리됐다. 침묵이 가끔은 제일 좋은 것 같다.");
+  const [tags, setTags] = useState(["한강", "산책", "혼자"]);
+  const [input, setInput] = useState("");
+  const [mood, setMood] = useState(1);
+  const moods = ["😤", "😔", "😐", "😌", "😊"];
+  const moodLabels = ["힘들다", "우울해", "보통", "편안해", "좋아!"];
+  const suggests = ["일상", "감정", "성장", "여행"];
+
+  const addTag = (t) => { if (t.trim() && !tags.includes(t.trim())) setTags([...tags, t.trim()]); setInput(""); };
+  const removeTag = (t) => setTags(tags.filter(x => x !== t));
+
+  return (
+    <div style={{ background: T.bg, minHeight: "100%", fontFamily: font }}>
+      {/* Header */}
+      <div style={{ background: T.surface, padding: "16px 20px",
+        borderBottom: `1px solid ${T.border}`,
+        display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <div style={{ color: T.muted, fontSize: 11 }}>2026. 03. 09  MON</div>
+          <div style={{ color: T.text, fontSize: 17, fontWeight: 700,
+            letterSpacing: "-0.03em", marginTop: 2 }}>오늘의 일기</div>
+        </div>
+        <button style={{ background: T.text, color: "#fff", border: "none",
+          borderRadius: 10, padding: "8px 18px", fontSize: 13, fontWeight: 600,
+          cursor: "pointer", fontFamily: font }}>저장</button>
+      </div>
+
+      <div style={{ padding: "16px" }}>
+        {/* Mood */}
+        <div style={{ background: T.surface, borderRadius: 14,
+          border: `1px solid ${T.border}`, padding: "14px 16px", marginBottom: 10 }}>
+          <div style={{ color: T.muted, fontSize: 11, fontWeight: 600,
+            letterSpacing: "0.05em", marginBottom: 10 }}>TODAY'S MOOD</div>
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            {moods.map((e, i) => (
+              <button key={i} onClick={() => setMood(i)} style={{
+                background: mood === i ? T.accentBg : "none",
+                border: `1.5px solid ${mood === i ? T.accent : T.border}`,
+                borderRadius: 10, padding: "8px 10px", cursor: "pointer",
+                display: "flex", flexDirection: "column", alignItems: "center", gap: 4
+              }}>
+                <span style={{ fontSize: 20 }}>{e}</span>
+                <span style={{ fontSize: 10, color: mood === i ? T.accent : T.muted,
+                  fontWeight: mood === i ? 600 : 400 }}>{moodLabels[i]}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Write */}
+        <div style={{ background: T.surface, borderRadius: 14,
+          border: `1px solid ${T.border}`, padding: "14px 16px", marginBottom: 10 }}>
+          <textarea value={content} onChange={e => setContent(e.target.value)}
+            placeholder="오늘 어떤 하루였나요?"
+            style={{ width: "100%", border: "none", outline: "none",
+              background: "transparent", color: T.text, fontSize: 14,
+              lineHeight: 1.75, resize: "none", minHeight: 120,
+              fontFamily: font, boxSizing: "border-box" }} />
+          <div style={{ color: T.muted, fontSize: 11, textAlign: "right" }}>{content.length}자</div>
+        </div>
+
+        {/* Tags */}
+        <div style={{ background: T.surface, borderRadius: 14,
+          border: `1px solid ${T.border}`, padding: "14px 16px", marginBottom: 10 }}>
+          <div style={{ color: T.muted, fontSize: 11, fontWeight: 600,
+            letterSpacing: "0.05em", marginBottom: 10 }}>TAGS</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+            {tags.map((t, i) => (
+              <span key={t} style={{
+                background: tagPalette[i % tagPalette.length][1],
+                color: tagPalette[i % tagPalette.length][0],
+                fontSize: 12, fontWeight: 500, padding: "3px 8px 3px 10px",
+                borderRadius: 6, display: "flex", alignItems: "center", gap: 5
+              }}>
+                #{t}
+                <span onClick={() => removeTag(t)} style={{
+                  cursor: "pointer", fontSize: 14, lineHeight: 1,
+                  color: tagPalette[i % tagPalette.length][0], opacity: 0.5,
+                  fontWeight: 300
+                }}>×</span>
+              </span>
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <input value={input} onChange={e => setInput(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && addTag(input)}
+              placeholder="태그 추가 후 Enter"
+              style={{ flex: 1, border: `1px solid ${T.border}`, borderRadius: 8,
+                padding: "7px 12px", fontSize: 13, color: T.text,
+                background: T.bg, outline: "none", fontFamily: font }} />
+          </div>
+          <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+            {suggests.filter(s => !tags.includes(s)).map(s => (
+              <span key={s} onClick={() => addTag(s)} style={{
+                border: `1px solid ${T.border}`, borderRadius: 20,
+                padding: "3px 10px", fontSize: 11, color: T.sub,
+                cursor: "pointer", background: T.bg
+              }}>+ {s}</span>
+            ))}
+          </div>
+        </div>
+
+        {/* Recommended Feed Preview */}
+        <div style={{ background: T.accentBg, borderRadius: 14, padding: "14px 16px" }}>
+          <div style={{ color: T.accent, fontSize: 11, fontWeight: 600,
+            letterSpacing: "0.05em", marginBottom: 10 }}>비슷한 이야기</div>
+          {[
+            { text: "혼자 한강 걷기 좋아하는 분? 요즘 유일한 낙이에요.", tags: ["한강", "혼자"], tIdx: [2, 3] },
+            { text: "산책하면서 아무 생각도 안 할 수 있다는 게 신기해.", tags: ["산책", "감정"], tIdx: [4, 0] },
+          ].map((r, i) => (
+            <div key={i} style={{ background: T.surface, borderRadius: 10,
+              padding: "10px 12px", marginBottom: i === 0 ? 8 : 0,
+              border: `1px solid ${T.border}` }}>
+              <div style={{ color: T.sub, fontSize: 12, lineHeight: 1.6, marginBottom: 6 }}>{r.text}</div>
+              <div style={{ display: "flex", gap: 5 }}>
+                {r.tags.map((t, j) => <Tag key={t} label={t} idx={r.tIdx[j]} sm />)}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── SCREEN 3: 마인드맵 ────────────────────────────────────
+function MindmapScreen() {
+  const [active, setActive] = useState("산책");
+  const [period, setPeriod] = useState("월별");
+  const [srcFilter, setSrcFilter] = useState("전체");
+
+  const nodes = [
+    { id: "산책", x: 195, y: 195, r: 30, color: T.tag1, bg: T.tag1Bg, count: 18, src: "write" },
+    { id: "여행", x: 310, y: 110, r: 24, color: T.tag3, bg: T.tag3Bg, count: 12, src: "write" },
+    { id: "감정", x: 90,  y: 120, r: 22, color: T.tag4, bg: T.tag4Bg, count: 10, src: "write" },
+    { id: "카페", x: 305, y: 285, r: 20, color: T.tag5, bg: T.tag5Bg, count: 8,  src: "like" },
+    { id: "음악", x: 95,  y: 295, r: 18, color: T.tag2, bg: T.tag2Bg, count: 7,  src: "comment" },
+    { id: "독서", x: 210, y: 320, r: 16, color: T.tag6, bg: T.tag6Bg, count: 5,  src: "like" },
+    { id: "새벽", x: 55,  y: 215, r: 15, color: T.tag1, bg: T.tag1Bg, count: 4,  src: "write" },
+    { id: "성장", x: 360, y: 205, r: 14, color: T.tag4, bg: T.tag4Bg, count: 3,  src: "comment" },
+  ];
+  const edges = [["산책","여행"],["산책","감정"],["산책","카페"],["산책","음악"],["산책","독서"],["감정","새벽"],["여행","카페"],["성장","산책"]];
+  const map = Object.fromEntries(nodes.map(n => [n.id, n]));
+  const an = map[active];
+
+  const visibleNodes = srcFilter === "전체" ? nodes
+    : srcFilter === "직접작성" ? nodes.filter(n => n.src === "write")
+    : srcFilter === "좋아요" ? nodes.filter(n => n.src === "like")
+    : nodes.filter(n => n.src === "comment");
+
+  const visibleIds = new Set(visibleNodes.map(n => n.id));
+  const srcSymbol = s => s === "like" ? "♥" : s === "comment" ? "·" : "";
+
+  return (
+    <div style={{ background: T.bg, minHeight: "100%", fontFamily: font }}>
+      {/* Header */}
+      <div style={{ background: T.surface, padding: "16px 20px 12px",
+        borderBottom: `1px solid ${T.border}` }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12 }}>
+          <span style={{ fontSize: 17, fontWeight: 700, color: T.text, letterSpacing: "-0.03em" }}>마인드맵</span>
+          <span style={{ color: T.muted, fontSize: 11 }}>2026년 3월 · 8개 태그</span>
+        </div>
+        {/* Period tabs */}
+        <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+          {["주별", "월별", "연도별"].map(p => (
+            <button key={p} onClick={() => setPeriod(p)} style={{
+              background: period === p ? T.text : T.bg,
+              color: period === p ? "#fff" : T.sub,
+              border: `1px solid ${period === p ? T.text : T.border}`,
+              borderRadius: 20, padding: "5px 14px", fontSize: 12, fontWeight: period === p ? 600 : 400,
+              cursor: "pointer", fontFamily: font
+            }}>{p}</button>
+          ))}
+        </div>
+        {/* Source filter */}
+        <div style={{ display: "flex", gap: 5 }}>
+          {["전체", "직접작성", "좋아요", "댓글"].map(f => (
+            <button key={f} onClick={() => setSrcFilter(f)} style={{
+              background: srcFilter === f ? T.accentBg : "transparent",
+              color: srcFilter === f ? T.accent : T.muted,
+              border: `1px solid ${srcFilter === f ? T.accent : T.border}`,
+              borderRadius: 6, padding: "3px 10px", fontSize: 11,
+              cursor: "pointer", fontFamily: font, fontWeight: srcFilter === f ? 600 : 400
+            }}>{f}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* SVG */}
+      <div style={{ background: T.surface, margin: "12px 16px",
+        borderRadius: 16, border: `1px solid ${T.border}`, overflow: "hidden" }}>
+        <svg width="100%" viewBox="0 0 420 400" style={{ display: "block" }}>
+          {edges.map(([a, b], i) => {
+            const na = map[a], nb = map[b];
+            const visible = visibleIds.has(a) && visibleIds.has(b);
+            const hl = a === active || b === active;
+            return (
+              <line key={i} x1={na.x} y1={na.y} x2={nb.x} y2={nb.y}
+                stroke={hl && visible ? na.color + "80" : T.border}
+                strokeWidth={hl && visible ? 1.5 : 1}
+                strokeDasharray={hl ? "none" : "4 3"}
+                opacity={visible ? 1 : 0.15} />
+            );
+          })}
+          {nodes.map(n => {
+            const visible = visibleIds.has(n.id);
+            const isActive = n.id === active;
+            return (
+              <g key={n.id} onClick={() => setActive(n.id)} style={{ cursor: "pointer" }}>
+                {isActive && (
+                  <circle cx={n.x} cy={n.y} r={n.r + 8}
+                    fill={n.color + "12"} stroke={n.color + "30"} strokeWidth={1} />
+                )}
+                <circle cx={n.x} cy={n.y} r={n.r}
+                  fill={visible ? (isActive ? n.color + "22" : n.bg) : "#F5F5F4"}
+                  stroke={visible ? (isActive ? n.color : n.color + "66") : T.border}
+                  strokeWidth={isActive ? 2 : n.src === "write" ? 1.5 : 1}
+                  strokeDasharray={n.src !== "write" ? "3 2" : "none"}
+                  opacity={visible ? 1 : 0.3} />
+                <text x={n.x} y={n.y} textAnchor="middle" dominantBaseline="middle"
+                  fill={visible ? (isActive ? n.color : n.color + "CC") : T.muted}
+                  fontSize={n.r > 22 ? 12 : 10} fontWeight={isActive ? 700 : 500}
+                  fontFamily={font}>
+                  {n.id}
+                </text>
+                {n.src !== "write" && visible && (
+                  <text x={n.x + n.r - 2} y={n.y - n.r + 4} fontSize={8}
+                    fill={n.src === "like" ? T.red : T.accent}>{srcSymbol(n.src)}</text>
+                )}
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+
+      {/* Legend */}
+      <div style={{ display: "flex", gap: 14, padding: "0 20px 8px" }}>
+        {[["실선", "직접 작성"], ["점선 ♥", "좋아요"], ["점선 ·", "댓글"]].map(([s, l]) => (
+          <div key={l} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            <span style={{ fontSize: 10, color: T.muted }}>{s}</span>
+            <span style={{ fontSize: 10, color: T.muted }}>= {l}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Tag Detail */}
+      {an && (
+        <div style={{ margin: "0 16px 20px", background: T.surface,
+          borderRadius: 14, border: `1px solid ${T.border}`, padding: "14px 16px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+            <Tag label={an.id} idx={nodes.findIndex(n => n.id === active)} />
+            <span style={{ color: T.sub, fontSize: 13, fontWeight: 600 }}>{an.count}회</span>
+            <span style={{ color: T.muted, fontSize: 11 }}>
+              {an.src === "write" ? "직접 작성" : an.src === "like" ? "좋아요에서" : "댓글에서"}
+            </span>
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            {["일기 2건", "게시글 5건", "좋아요 11건"].map(l => (
+              <div key={l} style={{ background: T.bg, border: `1px solid ${T.border}`,
+                borderRadius: 8, padding: "5px 10px", color: T.sub, fontSize: 11 }}>{l}</div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── SCREEN 4: 마이페이지 / 스트릭 ─────────────────────────
+function MyPageScreen() {
+  const streak = [true,true,true,true,false,true,true];
+  const days = ["월","화","수","목","금","토","일"];
+  const topTags = [
+    { name:"산책", count:18, idx:0 },
+    { name:"여행", count:12, idx:2 },
+    { name:"감정", count:10, idx:3 },
+    { name:"카페", count:8,  idx:4 },
+    { name:"음악", count:7,  idx:1 },
+  ];
+  const calRows = [
+    [0,0,0,1,1,1,1],
+    [1,1,0,1,1,1,1],
+    [1,1,1,1,0,1,1],
+    [1,1,1,1,1,0,0],
+  ];
+
+  return (
+    <div style={{ background: T.bg, minHeight: "100%", fontFamily: font }}>
+      {/* Profile */}
+      <div style={{ background: T.surface, padding: "20px 20px 16px",
+        borderBottom: `1px solid ${T.border}` }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16 }}>
+          <div style={{ width: 56, height: 56, borderRadius: "50%",
+            background: "#F0EFFF", border: `2px solid ${T.border}`,
+            display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26 }}>🦊</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: T.text, letterSpacing: "-0.03em" }}>새벽달</div>
+            <div style={{ fontSize: 11, color: T.muted, marginTop: 2 }}>가입 42일째 · @midnight_moon</div>
+          </div>
+          <button style={{ background: T.bg, border: `1px solid ${T.border}`,
+            borderRadius: 8, padding: "6px 12px", fontSize: 12, color: T.sub,
+            cursor: "pointer", fontFamily: font }}>편집</button>
+        </div>
+        <div style={{ display: "flex", gap: 0 }}>
+          {[["일기","23"],["게시글","14"],["팔로워","89"],["팔로잉","56"]].map(([l,v], i) => (
+            <div key={l} style={{ flex: 1, textAlign: "center",
+              borderRight: i < 3 ? `1px solid ${T.border}` : "none" }}>
+              <div style={{ fontSize: 16, fontWeight: 700, color: T.text }}>{v}</div>
+              <div style={{ fontSize: 11, color: T.muted, marginTop: 2 }}>{l}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ padding: "12px 16px 24px" }}>
+        {/* Streak */}
+        <div style={{ background: T.surface, borderRadius: 14,
+          border: `1px solid ${T.border}`, padding: "14px 16px", marginBottom: 10 }}>
+          <div style={{ display: "flex", justifyContent: "space-between",
+            alignItems: "center", marginBottom: 12 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: T.text }}>연속 기록</span>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+              <span style={{ fontSize: 22, fontWeight: 700, color: T.green, letterSpacing: "-0.05em" }}>7</span>
+              <span style={{ fontSize: 12, color: T.muted }}>일 연속 🔥</span>
+            </div>
+          </div>
+          {/* Week */}
+          <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+            {days.map((d, i) => (
+              <div key={d} style={{ flex: 1, textAlign: "center" }}>
+                <div style={{
+                  background: streak[i] ? T.greenBg : T.bg,
+                  border: `1.5px solid ${streak[i] ? T.green : T.border}`,
+                  borderRadius: 8, height: 34,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 13, color: streak[i] ? T.green : T.muted,
+                  marginBottom: 4
+                }}>{streak[i] ? "✓" : ""}</div>
+                <div style={{ fontSize: 10, color: T.muted }}>{d}</div>
+              </div>
+            ))}
+          </div>
+          {/* Calendar heatmap */}
+          <div style={{ borderTop: `1px solid ${T.border}`, paddingTop: 12 }}>
+            <div style={{ color: T.muted, fontSize: 11, marginBottom: 8 }}>이번 달 기록</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+              {calRows.map((row, ri) => (
+                <div key={ri} style={{ display: "flex", gap: 3 }}>
+                  {row.map((v, ci) => (
+                    <div key={ci} style={{
+                      width: 28, height: 18, borderRadius: 4,
+                      background: v ? T.green + "33" : T.bg,
+                      border: `1px solid ${v ? T.green + "44" : T.border}`
+                    }} />
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Retrospect */}
+        <div style={{ background: T.surface, borderRadius: 14,
+          border: `1px solid ${T.border}`, padding: "14px 16px", marginBottom: 10 }}>
+          <div style={{ color: T.muted, fontSize: 11, fontWeight: 600,
+            letterSpacing: "0.05em", marginBottom: 8 }}>1년 전 오늘</div>
+          <div style={{ color: T.sub, fontSize: 13, lineHeight: 1.7, marginBottom: 8,
+            fontStyle: "italic" }}>
+            "봄이 시작되는 것 같았다. 아무것도 계획 없이 나온 산책인데 기분이 좋아졌다."
+          </div>
+          <div style={{ display: "flex", gap: 5 }}>
+            <Tag label="산책" idx={0} sm />
+            <Tag label="봄" idx={3} sm />
+          </div>
+        </div>
+
+        {/* Top Tags */}
+        <div style={{ background: T.surface, borderRadius: 14,
+          border: `1px solid ${T.border}`, padding: "14px 16px", marginBottom: 10 }}>
+          <div style={{ color: T.muted, fontSize: 11, fontWeight: 600,
+            letterSpacing: "0.05em", marginBottom: 12 }}>이번 달 TOP 태그</div>
+          {topTags.map((t, i) => (
+            <div key={t.name} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: i < 4 ? 10 : 0 }}>
+              <span style={{ color: T.muted, fontSize: 11, width: 14, textAlign: "center" }}>{i + 1}</span>
+              <Tag label={t.name} idx={t.idx} sm />
+              <div style={{ flex: 1, background: T.bg, borderRadius: 4, height: 5, overflow: "hidden" }}>
+                <div style={{ background: tagPalette[t.idx][0], height: "100%",
+                  width: `${(t.count / 18) * 100}%`, borderRadius: 4 }} />
+              </div>
+              <span style={{ color: T.muted, fontSize: 11, width: 20, textAlign: "right" }}>{t.count}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Monthly Report */}
+        <div style={{ background: T.amberBg, borderRadius: 14,
+          border: `1px solid ${T.amber}33`, padding: "14px 16px",
+          display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <div style={{ color: T.amber, fontSize: 11, fontWeight: 600,
+              letterSpacing: "0.05em", marginBottom: 4 }}>2월 월간 리포트</div>
+            <div style={{ color: T.text, fontSize: 13, fontWeight: 600 }}>31회 기록 · 태그 12종</div>
+          </div>
+          <button style={{ background: T.surface, border: `1px solid ${T.border}`,
+            borderRadius: 8, padding: "7px 14px", fontSize: 12, color: T.sub,
+            cursor: "pointer", fontFamily: font }}>공유 ↗</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── APP SHELL ─────────────────────────────────────────────
+const tabs = [
+  { label: "피드",    icon: "⊞", screen: HomeScreen },
+  { label: "일기",   icon: "✎", screen: DiaryScreen },
+  { label: "맵",     icon: "◎", screen: MindmapScreen },
+  { label: "내 기록", icon: "◉", screen: MyPageScreen },
+];
+
+export default function App() {
+  const [idx, setIdx] = useState(0);
+  const Screen = tabs[idx].screen;
+
+  return (
+    <div style={{ background: "#E8E7E3", minHeight: "100vh",
+      display: "flex", justifyContent: "center", alignItems: "flex-start",
+      padding: "32px 0 32px" }}>
+      <div style={{
+        width: 375, background: T.bg,
+        borderRadius: 40,
+        boxShadow: "0 24px 64px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06)",
+        overflow: "hidden", border: "1px solid #D4D3CF"
+      }}>
+        {/* Status bar */}
+        <div style={{ background: T.surface, padding: "10px 28px 8px",
+          display: "flex", justifyContent: "space-between", alignItems: "center",
+          borderBottom: `1px solid ${T.border}` }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: T.text, fontFamily: font }}>9:41</span>
+          <div style={{ width: 72, height: 14, background: "#1A1A18",
+            borderRadius: 10, opacity: 0.9 }} />
+          <span style={{ fontSize: 11, color: T.sub, fontFamily: font }}>●●●</span>
+        </div>
+
+        {/* Content */}
+        <div style={{ maxHeight: 660, overflowY: "auto",
+          scrollbarWidth: "none", msOverflowStyle: "none" }}>
+          <Screen />
+        </div>
+
+        {/* Bottom nav */}
+        <div style={{ background: T.surface, borderTop: `1px solid ${T.border}`,
+          display: "flex", padding: "10px 0 18px" }}>
+          {tabs.map((t, i) => (
+            <button key={t.label} onClick={() => setIdx(i)} style={{
+              flex: 1, background: "none", border: "none", cursor: "pointer",
+              display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
+              fontFamily: font
+            }}>
+              <span style={{ fontSize: 18, opacity: idx === i ? 1 : 0.3 }}>{t.icon}</span>
+              <span style={{
+                fontSize: 10, fontWeight: idx === i ? 700 : 400,
+                color: idx === i ? T.text : T.muted
+              }}>{t.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
