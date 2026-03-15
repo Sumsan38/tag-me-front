@@ -1,15 +1,17 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* ============================================================
+   Tag-Me Design Tokens — TailwindCSS v4 @theme
+   ============================================================ */
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/*
+ * 런타임에 다크 모드, JS 등으로 변경 가능한 값은 :root에,
+ * 빌드 타임에 확정되는 디자인 토큰은 @theme에 정의합니다.
+ */
+
+:root {
+  --background: #FAFAF8;
+  --foreground: #1A1A18;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -19,8 +21,219 @@
   }
 }
 
+@theme {
+  /* ----------------------------------------------------------
+     기존 시스템 토큰 (유지)
+  ---------------------------------------------------------- */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
+  /* ----------------------------------------------------------
+     Primary — 파란 계열 (메인 브랜드)
+     사용 예: btn-primary, 링크, 포커스 링, CTA
+  ---------------------------------------------------------- */
+  --color-primary-50:  #EFF6FF;
+  --color-primary-100: #DBEAFE;
+  --color-primary-200: #BFDBFE;
+  --color-primary-300: #93C5FD;
+  --color-primary-400: #60A5FA;
+  --color-primary-500: #3B82F6;
+  --color-primary-600: #2563EB;
+  --color-primary-700: #1D4ED8;
+  --color-primary-800: #1E40AF;
+  --color-primary-900: #1E3A8A;
+  /* 기본 참조값 */
+  --color-primary:       var(--color-primary-600);
+  --color-primary-light: var(--color-primary-400);
+  --color-primary-dark:  var(--color-primary-800);
+
+  /* ----------------------------------------------------------
+     Secondary — 보라/인디고 계열 (보조 액션, 태그 뱃지 등)
+  ---------------------------------------------------------- */
+  --color-secondary-50:  #EEF2FF;
+  --color-secondary-100: #E0E7FF;
+  --color-secondary-200: #C7D2FE;
+  --color-secondary-300: #A5B4FC;
+  --color-secondary-400: #818CF8;
+  --color-secondary-500: #6366F1;
+  --color-secondary-600: #4F46E5;
+  --color-secondary-700: #4338CA;
+  --color-secondary-800: #3730A3;
+  --color-secondary-900: #312E81;
+  --color-secondary:       var(--color-secondary-600);
+  --color-secondary-light: var(--color-secondary-400);
+  --color-secondary-dark:  var(--color-secondary-800);
+
+  /* ----------------------------------------------------------
+     Accent — 민트/그린 계열 (강조, 스트릭, 달성 표시)
+  ---------------------------------------------------------- */
+  --color-accent-50:  #ECFDF5;
+  --color-accent-100: #D1FAE5;
+  --color-accent-200: #A7F3D0;
+  --color-accent-300: #6EE7B7;
+  --color-accent-400: #34D399;
+  --color-accent-500: #10B981;
+  --color-accent-600: #059669;
+  --color-accent-700: #047857;
+  --color-accent-800: #065F46;
+  --color-accent-900: #064E3B;
+  --color-accent:       var(--color-accent-500);
+  --color-accent-light: var(--color-accent-300);
+  --color-accent-dark:  var(--color-accent-700);
+
+  /* ----------------------------------------------------------
+     시맨틱 색상 (Semantic)
+  ---------------------------------------------------------- */
+  --color-success:        #18A058;
+  --color-success-bg:     #ECFDF5;
+  --color-success-border: #A7F3D0;
+
+  --color-warning:        #D97706;
+  --color-warning-bg:     #FFFBEB;
+  --color-warning-border: #FDE68A;
+
+  --color-error:          #E8445A;
+  --color-error-bg:       #FFF1F2;
+  --color-error-border:   #FECDD3;
+
+  --color-info:           #0891B2;
+  --color-info-bg:        #ECFEFF;
+  --color-info-border:    #A5F3FC;
+
+  /* ----------------------------------------------------------
+     태그 출처별 색상 (Tag Source)
+     source: diary | post | like | comment
+  ---------------------------------------------------------- */
+
+  /* diary — 직접 일기에 작성한 태그 (진한 파란색) */
+  --color-tag-diary-fg: #2563EB;
+  --color-tag-diary-bg: #EFF6FF;
+  --color-tag-diary-border: #BFDBFE;
+
+  /* post — 피드 게시글에 작성한 태그 (진한 초록색) */
+  --color-tag-post-fg: #16A34A;
+  --color-tag-post-bg: #F0FDF4;
+  --color-tag-post-border: #BBF7D0;
+
+  /* like — 좋아요를 통해 수집된 태그 (연한 분홍/반투명) */
+  --color-tag-like-fg: #BE185D;
+  --color-tag-like-bg: #FFF1F2;
+  --color-tag-like-border: #FCA5A5;
+
+  /* comment — 댓글을 통해 수집된 태그 (연한 노랑/반투명) */
+  --color-tag-comment-fg: #B45309;
+  --color-tag-comment-bg: #FFFBEB;
+  --color-tag-comment-border: #FDE68A;
+
+  /* ----------------------------------------------------------
+     태그 색상 팔레트 (idx % 6 순환 적용)
+     컴포넌트: <Tag label idx />
+  ---------------------------------------------------------- */
+  --color-tag-palette-0-fg: #5B5BD6;
+  --color-tag-palette-0-bg: #EFEFFD;
+
+  --color-tag-palette-1-fg: #C026D3;
+  --color-tag-palette-1-bg: #FDF4FF;
+
+  --color-tag-palette-2-fg: #0891B2;
+  --color-tag-palette-2-bg: #ECFEFF;
+
+  --color-tag-palette-3-fg: #059669;
+  --color-tag-palette-3-bg: #ECFDF5;
+
+  --color-tag-palette-4-fg: #EA580C;
+  --color-tag-palette-4-bg: #FFF7ED;
+
+  --color-tag-palette-5-fg: #7C3AED;
+  --color-tag-palette-5-bg: #F5F3FF;
+
+  /* ----------------------------------------------------------
+     서피스 / 텍스트 기본 색상
+  ---------------------------------------------------------- */
+  --color-surface:  #FFFFFF;
+  --color-border:   #EBEBEA;
+  --color-text:     #1A1A18;
+  --color-sub:      #6B6B68;
+  --color-muted:    #A8A8A4;
+
+  /* ----------------------------------------------------------
+     폰트 크기 (커스텀)
+     Tailwind 기본값을 보완하는 Tag-Me 전용 스케일
+  ---------------------------------------------------------- */
+  --text-2xs:   0.625rem;   /* 10px — 태그 라벨 sm */
+  --text-xs:    0.75rem;    /* 12px */
+  --text-sm:    0.875rem;   /* 14px */
+  --text-base:  1rem;       /* 16px */
+  --text-lg:    1.125rem;   /* 18px */
+  --text-xl:    1.25rem;    /* 20px */
+  --text-2xl:   1.5rem;     /* 24px */
+  --text-3xl:   1.875rem;   /* 30px — 스트릭 카운트 */
+  --text-4xl:   2.25rem;    /* 36px */
+
+  /* ----------------------------------------------------------
+     간격 (Spacing) — Tailwind 기본 4px 그리드에 추가
+  ---------------------------------------------------------- */
+  --spacing-0-5: 0.125rem;  /* 2px  — 태그 내부 패딩 */
+  --spacing-4-5: 1.125rem;  /* 18px — 카드 내부 여백 */
+  --spacing-18:  4.5rem;    /* 72px */
+  --spacing-22:  5.5rem;    /* 88px */
+  --spacing-30:  7.5rem;    /* 120px — 아바타 대형 */
+  --spacing-88:  22rem;     /* 352px — 사이드바 너비 */
+  --spacing-120: 30rem;     /* 480px — 카드 최대 너비 */
+
+  /* ----------------------------------------------------------
+     Border Radius
+  ---------------------------------------------------------- */
+  --radius-tag: 9999px;     /* 태그 뱃지 — 완전 원형 */
+  --radius-card: 0.75rem;   /* 12px — 카드 컴포넌트 */
+  --radius-modal: 1rem;     /* 16px — 모달 */
+
+  /* ----------------------------------------------------------
+     그림자 (Box Shadow)
+  ---------------------------------------------------------- */
+  --shadow-card:  0 1px 4px 0 rgba(0,0,0,0.06), 0 1px 2px 0 rgba(0,0,0,0.04);
+  --shadow-modal: 0 8px 32px 0 rgba(0,0,0,0.12), 0 2px 8px 0 rgba(0,0,0,0.06);
+  --shadow-tag:   0 1px 2px 0 rgba(0,0,0,0.06);
+
+  /* ----------------------------------------------------------
+     트랜지션 Duration
+  ---------------------------------------------------------- */
+  --duration-fast:   100ms;
+  --duration-normal: 180ms;
+  --duration-slow:   300ms;
+}
+
+/* ============================================================
+   글로벌 베이스 스타일
+   ============================================================ */
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  /* layout.tsx에서 <body>에 주입된 --font-sans CSS variable을 참조 */
+  font-family: var(--font-sans), "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 포커스 링 — 접근성 (WCAG 2.1 AA) */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* 스크롤바 (webkit) */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-muted);
 }
