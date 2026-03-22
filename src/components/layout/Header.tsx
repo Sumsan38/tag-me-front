@@ -1,8 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { Search, Bell, LogIn, UserPlus } from 'lucide-react';
+import { Bell, LogIn, UserPlus } from 'lucide-react';
 import { Avatar, Badge } from '@/components/common';
 import { ROUTES } from '@/constants/routes';
 import { useAuthStore, selectIsAuthenticated } from '@/stores/authStore';
@@ -17,7 +16,6 @@ export default function Header({
   notificationCount = 0,
   className = '',
 }: HeaderProps) {
-  const router = useRouter();
   const isLoggedIn = useAuthStore(selectIsAuthenticated);
   const user = useAuthStore((s) => s.user);
 
@@ -38,35 +36,10 @@ export default function Header({
           Tag Me
         </Link>
 
-        {/* 검색바 — 데스크탑에서만 표시 */}
-        <button
-          type="button"
-          onClick={() => router.push(ROUTES.SEARCH)}
-          aria-label="검색 페이지로 이동"
-          className={[
-            'hidden md:flex flex-1 items-center gap-2 max-w-sm mx-auto',
-            'h-9 px-3 rounded-xl bg-[#F5F5F4] border border-border',
-            'text-sm text-muted hover:border-muted transition-colors cursor-pointer',
-          ].join(' ')}
-        >
-          <Search size={14} className="shrink-0 text-muted" aria-hidden />
-          <span>태그, 일기, 게시글 검색</span>
-        </button>
-
         {/* 오른쪽 영역 */}
         <div className="ml-auto flex items-center gap-2 shrink-0">
           {isLoggedIn ? (
             <>
-              {/* 모바일 검색 아이콘 */}
-              <button
-                type="button"
-                onClick={() => router.push(ROUTES.SEARCH)}
-                aria-label="검색"
-                className="md:hidden flex items-center justify-center w-9 h-9 rounded-xl text-sub hover:bg-[#F5F5F4] transition-colors"
-              >
-                <Search size={18} aria-hidden />
-              </button>
-
               {/* 알림 아이콘 */}
               <Link
                 href={ROUTES.NOTIFICATIONS}
@@ -117,15 +90,6 @@ export default function Header({
                 회원가입
               </Link>
 
-              {/* 모바일 검색 아이콘 (비로그인) */}
-              <button
-                type="button"
-                onClick={() => router.push(ROUTES.SEARCH)}
-                aria-label="검색"
-                className="sm:hidden flex items-center justify-center w-9 h-9 rounded-xl text-sub hover:bg-[#F5F5F4] transition-colors"
-              >
-                <Search size={18} aria-hidden />
-              </button>
             </>
           )}
         </div>
