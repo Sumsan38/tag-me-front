@@ -2,12 +2,10 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Search, Bell, Menu, LogIn, UserPlus } from 'lucide-react';
+import { Search, Bell, LogIn, UserPlus } from 'lucide-react';
 import { Avatar, Badge } from '@/components/common';
 import { ROUTES } from '@/constants/routes';
-
-// TODO(auth): 실제 인증 상태 연동 시 useAuthStore로 교체
-// import { useAuthStore } from '@/stores/authStore';
+import { useAuthStore, selectIsAuthenticated } from '@/stores/authStore';
 
 export interface HeaderProps {
   /** 알림 카운트 (기본값: 0) */
@@ -15,25 +13,13 @@ export interface HeaderProps {
   className?: string;
 }
 
-// ---------------------------------------------------------------------------
-// 하드코딩된 더미 사용자 (TODO(auth): 실제 인증 상태로 교체)
-// ---------------------------------------------------------------------------
-const MOCK_USER = {
-  isLoggedIn: true,
-  emoji: '🦊',
-  avatarBg: '#F0EFFF',
-  streakCount: 7,
-};
-
 export default function Header({
-  notificationCount = 3,
+  notificationCount = 0,
   className = '',
 }: HeaderProps) {
   const router = useRouter();
-
-  // TODO(auth): 아래 하드코딩을 useAuthStore()로 교체한다.
-  // const { isAuthenticated, user } = useAuthStore();
-  const { isLoggedIn, emoji, avatarBg, streakCount } = MOCK_USER;
+  const isLoggedIn = useAuthStore(selectIsAuthenticated);
+  const user = useAuthStore((s) => s.user);
 
   return (
     <header
@@ -71,14 +57,6 @@ export default function Header({
         <div className="ml-auto flex items-center gap-2 shrink-0">
           {isLoggedIn ? (
             <>
-              {/* 스트릭 뱃지 */}
-              <span
-                aria-label={`연속 기록 ${streakCount}일`}
-                className="hidden sm:inline-flex items-center gap-1 bg-[#EDFAF3] text-success text-xs font-semibold px-2.5 py-1 rounded-full"
-              >
-                🔥 {streakCount}일
-              </span>
-
               {/* 모바일 검색 아이콘 */}
               <button
                 type="button"
@@ -113,9 +91,9 @@ export default function Header({
                 className="rounded-full hover:ring-2 hover:ring-border transition-all"
               >
                 <Avatar
-                  emoji={emoji}
+                  src={user?.profileImage ?? undefined}
+                  initials={user?.nickname?.slice(0, 2)}
                   size="sm"
-                  bg={avatarBg}
                 />
               </Link>
             </>

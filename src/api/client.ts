@@ -58,13 +58,21 @@ function getAccessToken(): string | null {
 }
 
 /**
- * Access Token 저장 함수.
+ * 토큰 쌍 저장 함수.
  *
  * Silent Refresh(토큰 갱신) 성공 후 응답 인터셉터에서 호출한다.
- * setAccessToken은 토큰만 교체하며 user 정보는 유지된다.
+ * setTokens는 토큰 쌍만 교체하며 user 정보는 유지된다.
  */
-function setAccessToken(token: string): void {
-  useAuthStore.getState().setAccessToken(token);
+function setTokens(accessToken: string, refreshToken: string): void {
+  useAuthStore.getState().setTokens(accessToken, refreshToken);
+}
+
+/**
+ * Refresh Token 조회 함수.
+ * 토큰 갱신 요청 시 body에 포함하기 위해 사용한다.
+ */
+function getRefreshToken(): string | null {
+  return useAuthStore.getState().refreshToken;
 }
 
 /**
@@ -78,6 +86,26 @@ function clearAuthState(): void {
 }
 
 // ---------------------------------------------------------------------------
+// 토큰 갱신 제외 경로
+// ---------------------------------------------------------------------------
+
+/**
+ * 401 응답 시 토큰 갱신(Silent Refresh)을 시도하지 않을 경로 목록.
+ * 로그인·회원가입 등 인증 엔드포인트 자체의 401은
+ * "잘못된 credentials" 의미이므로 갱신 대상이 아니다.
+ */
+const AUTH_ENDPOINTS = [
+  '/api/v1/auth/login',
+  '/api/v1/auth/register',
+  '/api/v1/auth/refresh',
+];
+
+function isAuthEndpoint(url: string | undefined): boolean {
+  if (!url) return false;
+  return AUTH_ENDPOINTS.some((endpoint) => url.includes(endpoint));
+}
+
+// ---------------------------------------------------------------------------
 // Axios 인스턴스
 // ---------------------------------------------------------------------------
 
@@ -86,8 +114,9 @@ const apiClient = axios.create({
   timeout: 10_000,
   headers: { 'Content-Type': 'application/json' },
   /**
-   * Refresh Token이 HttpOnly Cookie 이므로 반드시 true.
-   * Same-Site/CORS 정책에 따라 백엔드 CORS 설정과 맞추어야 한다.
+   * 백엔드 CORS 정책에 따라 credentials 포함 여부를 설정한다.
+   * 현재 Refresh Token은 응답 body로 전달받아 메모리(Zustand)에 저장하며,
+   * 토큰 갱신 시 body에 포함하여 전송한다.
    */
   withCredentials: true,
 });
@@ -131,16 +160,26 @@ function rejectRefreshQueue(error: unknown): void {
 // ---------------------------------------------------------------------------
 
 /**
- * Refresh Token(HttpOnly Cookie)을 이용해 새로운 Access Token을 발급받는다.
+ * Refresh Token을 이용해 새로운 토큰 쌍을 발급받는다.
  * apiClient 를 사용하면 인터셉터가 재귀 호출되므로 axios 원본을 사용한다.
  */
-async function requestTokenRefresh(): Promise<string> {
-  const response = await axios.post<ApiEnvelope<{ accessToken: string }>>(
+async function requestTokenRefresh(): Promise<{
+  accessToken: string;
+  refreshToken: string;
+}> {
+  const currentRefreshToken = getRefreshToken();
+  if (!currentRefreshToken) {
+    throw new Error('No refresh token available');
+  }
+
+  const response = await axios.post<
+    ApiEnvelope<{ accessToken: string; refreshToken: string }>
+  >(
     `${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/refresh`,
-    {},
-    { withCredentials: true },
+    { refreshToken: currentRefreshToken },
+    { headers: { 'Content-Type': 'application/json' } },
   );
-  return response.data.data.accessToken;
+  return response.data.data;
 }
 
 // ---------------------------------------------------------------------------
@@ -201,7 +240,8 @@ apiClient.interceptors.response.use(
     if (
       error.response?.status === 401 &&
       originalRequest &&
-      !originalRequest._retry
+      !originalRequest._retry &&
+      !isAuthEndpoint(originalRequest.url)
     ) {
       if (isRefreshing) {
         // 이미 갱신 중 — 큐에 등록하고 갱신 완료 후 재시도
@@ -220,11 +260,11 @@ apiClient.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const newToken = await requestTokenRefresh();
-        setAccessToken(newToken);
-        resolveRefreshQueue(newToken);
+        const tokens = await requestTokenRefresh();
+        setTokens(tokens.accessToken, tokens.refreshToken);
+        resolveRefreshQueue(tokens.accessToken);
 
-        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        originalRequest.headers.Authorization = `Bearer ${tokens.accessToken}`;
         return apiClient(originalRequest);
       } catch (refreshError) {
         rejectRefreshQueue(refreshError);

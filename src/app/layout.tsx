@@ -3,6 +3,7 @@ import { Noto_Sans_KR } from "next/font/google";
 import "./globals.css";
 import QueryProvider from "@/providers/QueryProvider";
 import { ToastProvider } from "@/providers/ToastProvider";
+import AuthHydration from "@/providers/AuthHydration";
 
 // Noto Sans KR — 한국어 서비스 기본 폰트
 // subsets: 'latin'만 지원하지만 한국어 글리프는 Google Fonts 측에서 자동으로 포함됨
@@ -28,7 +29,9 @@ export default function RootLayout({
     <html lang="ko">
       <body className={`${notoSansKR.variable} antialiased`}>
         <QueryProvider>
-          <ToastProvider>{children}</ToastProvider>
+          <ToastProvider>
+            <AuthHydration>{children}</AuthHydration>
+          </ToastProvider>
         </QueryProvider>
       </body>
     </html>

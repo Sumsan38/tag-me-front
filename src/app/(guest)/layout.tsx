@@ -10,43 +10,36 @@
  * 렌더링 전략: CSR
  *   - OAuth 콜백, 폼 인터랙션 등 모두 클라이언트 의존
  *   - 인증 상태는 클라이언트 스토어에서 확인
- *
- * TODO(auth-guard): 인증 스토어 구현 후 아래 가드를 활성화한다.
- *   1. useAuthStore()로 isAuthenticated 상태를 구독
- *   2. isAuthenticated === true 이면 router.replace(ROUTES.HOME) 호출
- *   3. 스토어 hydration 완료 전에는 스피너 또는 null을 반환하여
- *      로그인 페이지가 순간 노출되는 플래시를 방지
  */
 
 'use client';
 
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import type { ReactNode } from 'react';
+import { useAuthStore, selectIsAuthenticated } from '@/stores/authStore';
+import { ROUTES } from '@/constants/routes';
 import { AuthLayout } from '@/components/layout';
-
-// TODO(auth-guard): import { useEffect } from 'react';
-// TODO(auth-guard): import { useRouter } from 'next/navigation';
-// TODO(auth-guard): import { useAuthStore } from '@/stores/authStore';
-// TODO(auth-guard): import { ROUTES } from '@/constants/routes';
 
 export default function GuestLayout({
   children,
 }: {
   children: ReactNode;
 }) {
-  // TODO(auth-guard): 인증 가드 시작 ---
-  // const router = useRouter();
-  // const { isAuthenticated, isHydrated } = useAuthStore();
-  //
-  // useEffect(() => {
-  //   if (isHydrated && isAuthenticated) {
-  //     router.replace(ROUTES.HOME);
-  //   }
-  // }, [isAuthenticated, isHydrated, router]);
-  //
-  // if (!isHydrated || isAuthenticated) {
-  //   return null; // 또는 <FullScreenSpinner />
-  // }
-  // TODO(auth-guard): 인증 가드 끝 ---
+  const router = useRouter();
+  const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const isHydrated = useAuthStore((s) => s.isHydrated);
+
+  useEffect(() => {
+    if (isHydrated && isAuthenticated) {
+      router.replace(ROUTES.FEED);
+    }
+  }, [isAuthenticated, isHydrated, router]);
+
+  // hydration 완료 전이거나 이미 인증된 상태면 빈 화면 (flash 방지)
+  if (!isHydrated || isAuthenticated) {
+    return null;
+  }
 
   return <AuthLayout>{children}</AuthLayout>;
 }

@@ -6,7 +6,9 @@
  * - AuthProvider: 가입 경로 구분 (이메일/Google/Kakao)
  * - User: 로그인한 사용자 정보 (authStore.ts에서 import)
  * - LoginRequest / RegisterRequest: 로컬 인증 요청 바디
- * - TokenResponse: 로그인/토큰 갱신 응답 (refreshToken은 HttpOnly Cookie로 전달)
+ * - LoginResponse: 로그인/토큰 갱신 응답 (accessToken + refreshToken)
+ * - UserProfileResponse / PublicUserProfileResponse: 프로필 API 응답
+ * - OAuthAuthorizeResponse: OAuth 인가 URL 응답
  *
  * OAuth 콜백 처리에서 CSRF state 파라미터 검증은 서버에서 수행한다.
  */
@@ -34,7 +36,7 @@ export type AuthProvider = 'local' | 'google' | 'kakao';
  * provider가 null이면 아직 정보를 불러오지 않은 상태이다.
  */
 export interface User {
-  id: string;
+  id: number;
   email: string;
   nickname: string;
   profileImage: string | null;
@@ -62,9 +64,51 @@ export interface RegisterRequest {
 
 /**
  * 로그인 및 토큰 갱신(Silent Refresh) 응답.
- * Refresh Token은 서버가 Set-Cookie(HttpOnly)로 내려주므로 이 타입에 포함되지 않는다.
- * Access Token은 메모리(Zustand)에만 보관한다.
+ * 백엔드가 accessToken, refreshToken을 모두 응답 body에 포함한다.
+ * accessToken과 refreshToken은 메모리(Zustand)에만 보관한다.
  */
-export interface TokenResponse {
+export interface LoginResponse {
+  userId: number;
   accessToken: string;
+  refreshToken: string;
+}
+
+/**
+ * GET /api/v1/users/me 응답.
+ */
+export interface UserProfileResponse {
+  userId: number;
+  email: string;
+  nickname: string;
+  profileImage: string | null;
+  streakCount: number;
+  createdAt: string;
+}
+
+/**
+ * GET /api/v1/users/{id} 응답.
+ */
+export interface PublicUserProfileResponse {
+  userId: number;
+  email: string;
+  nickname: string;
+  profileImage: string | null;
+  streakCount: number;
+  createdAt: string;
+}
+
+/**
+ * PUT /api/v1/users/me 요청.
+ */
+export interface UpdateProfileRequest {
+  nickname: string;
+  profileImageUrl: string | null;
+}
+
+/**
+ * GET /api/v1/auth/oauth/{provider} 응답.
+ */
+export interface OAuthAuthorizeResponse {
+  authorizationUrl: string;
+  state: string;
 }

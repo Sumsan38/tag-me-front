@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import {
   Home,
   BookOpen,
@@ -13,9 +13,7 @@ import {
   LogOut,
 } from 'lucide-react';
 import { ROUTES } from '@/constants/routes';
-
-// TODO(auth): 실제 로그아웃 액션 연동 시 useAuthStore로 교체
-// import { useAuthStore } from '@/stores/authStore';
+import { useLogout } from '@/hooks/useAuth';
 
 interface SidebarNavItem {
   label: string;
@@ -38,11 +36,10 @@ export interface SidebarProps {
 
 export default function Sidebar({ className = '' }: SidebarProps) {
   const pathname = usePathname();
-  const router = useRouter();
+  const logout = useLogout();
 
-  // TODO(auth): clearAuth() + router.push(ROUTES.LOGIN) 로 교체
   const handleLogout = () => {
-    router.push(ROUTES.LOGIN);
+    logout.mutate();
   };
 
   const isActive = (href: string): boolean => {
@@ -60,17 +57,6 @@ export default function Sidebar({ className = '' }: SidebarProps) {
         className,
       ].join(' ')}
     >
-      {/* 로고 */}
-      <div className="px-5 py-4 border-b border-border">
-        <Link
-          href={ROUTES.HOME}
-          aria-label="Tag Me 홈으로 이동"
-          className="text-[17px] font-bold text-text tracking-[-0.03em] hover:opacity-80 transition-opacity"
-        >
-          Tag Me
-        </Link>
-      </div>
-
       {/* 네비게이션 링크 */}
       <nav aria-label="주요 메뉴" className="flex-1 overflow-y-auto py-3 px-3">
         <ul role="list" className="space-y-0.5">
@@ -127,15 +113,17 @@ export default function Sidebar({ className = '' }: SidebarProps) {
         <button
           type="button"
           onClick={handleLogout}
+          disabled={logout.isPending}
           aria-label="로그아웃"
           className={[
             'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium',
             'text-sub hover:bg-[#F5F5F4] hover:text-text',
             'transition-colors duration-[var(--duration-fast)] cursor-pointer',
+            'disabled:opacity-50 disabled:cursor-not-allowed',
           ].join(' ')}
         >
           <LogOut size={18} className="shrink-0 opacity-50" aria-hidden />
-          로그아웃
+          {logout.isPending ? '로그아웃 중...' : '로그아웃'}
         </button>
       </div>
     </aside>

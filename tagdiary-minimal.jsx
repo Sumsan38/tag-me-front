@@ -452,8 +452,323 @@ function MindmapScreen() {
   );
 }
 
+// ── SCREEN 5: 프로필 설정 ─────────────────────────────────
+function ProfileScreen({ onBack }) {
+  const [nickname, setNickname] = useState("새벽달");
+  const [nicknameEdit, setNicknameEdit] = useState(false);
+  const [nicknameInput, setNicknameInput] = useState("새벽달");
+
+  const [pwStep, setPwStep] = useState(null); // null | "form" | "done"
+  const [pw, setPw] = useState({ current: "", next: "", confirm: "" });
+  const [pwError, setPwError] = useState("");
+
+  const [showLogout, setShowLogout] = useState(false);
+
+  const handleNicknameSave = () => {
+    if (nicknameInput.trim()) setNickname(nicknameInput.trim());
+    setNicknameEdit(false);
+  };
+
+  const handlePwSave = () => {
+    if (!pw.current) { setPwError("현재 비밀번호를 입력해주세요."); return; }
+    if (pw.next.length < 8) { setPwError("새 비밀번호는 8자 이상이어야 해요."); return; }
+    if (pw.next !== pw.confirm) { setPwError("새 비밀번호가 일치하지 않아요."); return; }
+    setPwError("");
+    setPwStep("done");
+  };
+
+  const menuItems = [
+    {
+      section: "계정",
+      items: [
+        { icon: "✏️", label: "닉네임 수정", action: () => setNicknameEdit(true) },
+        { icon: "🔒", label: "비밀번호 변경", action: () => { setPwStep("form"); setPw({ current:"", next:"", confirm:"" }); setPwError(""); } },
+      ],
+    },
+    {
+      section: "알림",
+      items: [
+        { icon: "🔔", label: "스트릭 알림", toggle: true, defaultOn: true },
+        { icon: "💬", label: "댓글 알림", toggle: true, defaultOn: true },
+        { icon: "♥", label: "좋아요 알림", toggle: true, defaultOn: false },
+      ],
+    },
+    {
+      section: "기타",
+      items: [
+        { icon: "🛡️", label: "개인정보처리방침", action: () => {} },
+        { icon: "📄", label: "이용약관", action: () => {} },
+      ],
+    },
+  ];
+
+  return (
+    <div style={{ background: T.bg, minHeight: "100%", fontFamily: font }}>
+      {/* 헤더 */}
+      <div style={{ background: T.surface, padding: "16px 20px",
+        borderBottom: `1px solid ${T.border}`,
+        display: "flex", alignItems: "center", gap: 12 }}>
+        <button onClick={onBack} style={{
+          background: "none", border: "none", cursor: "pointer",
+          fontSize: 18, color: T.text, padding: 0, lineHeight: 1,
+          display: "flex", alignItems: "center",
+        }}>←</button>
+        <span style={{ fontSize: 17, fontWeight: 700, color: T.text, letterSpacing: "-0.03em" }}>
+          프로필 설정
+        </span>
+      </div>
+
+      {/* 프로필 요약 */}
+      <div style={{ background: T.surface, padding: "20px",
+        borderBottom: `1px solid ${T.border}`,
+        display: "flex", alignItems: "center", gap: 14 }}>
+        <div style={{ width: 56, height: 56, borderRadius: "50%",
+          background: "#F0EFFF", border: `2px solid ${T.border}`,
+          display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26,
+          cursor: "pointer" }}>🦊</div>
+        <div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: T.text, letterSpacing: "-0.03em" }}>
+            {nickname}
+          </div>
+          <div style={{ fontSize: 11, color: T.muted, marginTop: 2 }}>@midnight_moon</div>
+        </div>
+      </div>
+
+      <div style={{ padding: "12px 16px 24px" }}>
+        {/* 메뉴 섹션들 */}
+        {menuItems.map(({ section, items }) => (
+          <div key={section} style={{ marginBottom: 12 }}>
+            <div style={{ color: T.muted, fontSize: 11, fontWeight: 600,
+              letterSpacing: "0.06em", textTransform: "uppercase",
+              padding: "6px 4px 8px" }}>{section}</div>
+            <div style={{ background: T.surface, borderRadius: 14,
+              border: `1px solid ${T.border}`, overflow: "hidden" }}>
+              {items.map((item, i) => (
+                <SettingRow key={item.label} item={item}
+                  showBorder={i < items.length - 1} />
+              ))}
+            </div>
+          </div>
+        ))}
+
+        {/* 로그아웃 */}
+        <button onClick={() => setShowLogout(true)} style={{
+          width: "100%", background: T.surface, border: `1px solid ${T.border}`,
+          borderRadius: 14, padding: "14px 16px",
+          display: "flex", alignItems: "center", gap: 10,
+          cursor: "pointer", fontFamily: font, color: T.red,
+        }}>
+          <span style={{ fontSize: 16 }}>🚪</span>
+          <span style={{ fontSize: 14, fontWeight: 500 }}>로그아웃</span>
+        </button>
+
+        {/* 회원 탈퇴 */}
+        <div style={{ textAlign: "center", marginTop: 16 }}>
+          <button style={{ background: "none", border: "none", cursor: "pointer",
+            color: T.muted, fontSize: 12, fontFamily: font,
+            textDecoration: "underline", textUnderlineOffset: 3 }}>
+            회원 탈퇴
+          </button>
+        </div>
+      </div>
+
+      {/* 닉네임 수정 모달 */}
+      {nicknameEdit && (
+        <Modal title="닉네임 수정" onClose={() => setNicknameEdit(false)}>
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ fontSize: 12, color: T.muted, display: "block", marginBottom: 6 }}>
+              새 닉네임
+            </label>
+            <input
+              value={nicknameInput}
+              onChange={e => setNicknameInput(e.target.value)}
+              maxLength={20}
+              style={{
+                width: "100%", border: `1px solid ${T.border}`, borderRadius: 10,
+                padding: "10px 12px", fontSize: 14, color: T.text,
+                background: T.bg, outline: "none", fontFamily: font, boxSizing: "border-box",
+              }}
+            />
+            <div style={{ fontSize: 11, color: T.muted, textAlign: "right", marginTop: 4 }}>
+              {nicknameInput.length}/20
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => setNicknameEdit(false)} style={{
+              flex: 1, background: T.bg, border: `1px solid ${T.border}`,
+              borderRadius: 10, padding: "10px", fontSize: 13, color: T.sub,
+              cursor: "pointer", fontFamily: font,
+            }}>취소</button>
+            <button onClick={handleNicknameSave} style={{
+              flex: 1, background: T.text, border: "none",
+              borderRadius: 10, padding: "10px", fontSize: 13, color: "#fff",
+              cursor: "pointer", fontFamily: font, fontWeight: 600,
+            }}>저장</button>
+          </div>
+        </Modal>
+      )}
+
+      {/* 비밀번호 변경 모달 */}
+      {pwStep === "form" && (
+        <Modal title="비밀번호 변경" onClose={() => setPwStep(null)}>
+          {[
+            { key: "current", label: "현재 비밀번호" },
+            { key: "next", label: "새 비밀번호" },
+            { key: "confirm", label: "새 비밀번호 확인" },
+          ].map(({ key, label }) => (
+            <div key={key} style={{ marginBottom: 10 }}>
+              <label style={{ fontSize: 12, color: T.muted, display: "block", marginBottom: 5 }}>
+                {label}
+              </label>
+              <input
+                type="password"
+                value={pw[key]}
+                onChange={e => setPw(p => ({ ...p, [key]: e.target.value }))}
+                style={{
+                  width: "100%", border: `1px solid ${T.border}`, borderRadius: 10,
+                  padding: "10px 12px", fontSize: 14, color: T.text,
+                  background: T.bg, outline: "none", fontFamily: font, boxSizing: "border-box",
+                }}
+              />
+            </div>
+          ))}
+          {pwError && (
+            <div style={{ color: T.red, fontSize: 12, marginBottom: 10 }}>{pwError}</div>
+          )}
+          <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+            <button onClick={() => setPwStep(null)} style={{
+              flex: 1, background: T.bg, border: `1px solid ${T.border}`,
+              borderRadius: 10, padding: "10px", fontSize: 13, color: T.sub,
+              cursor: "pointer", fontFamily: font,
+            }}>취소</button>
+            <button onClick={handlePwSave} style={{
+              flex: 1, background: T.text, border: "none",
+              borderRadius: 10, padding: "10px", fontSize: 13, color: "#fff",
+              cursor: "pointer", fontFamily: font, fontWeight: 600,
+            }}>변경하기</button>
+          </div>
+        </Modal>
+      )}
+
+      {/* 비밀번호 변경 완료 */}
+      {pwStep === "done" && (
+        <Modal title="" onClose={() => setPwStep(null)}>
+          <div style={{ textAlign: "center", padding: "8px 0 16px" }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: T.text, marginBottom: 6 }}>
+              비밀번호가 변경됐어요
+            </div>
+            <div style={{ fontSize: 13, color: T.muted, marginBottom: 20 }}>
+              다음 로그인부터 새 비밀번호를 사용해주세요.
+            </div>
+            <button onClick={() => setPwStep(null)} style={{
+              width: "100%", background: T.text, border: "none",
+              borderRadius: 10, padding: "11px", fontSize: 13, color: "#fff",
+              cursor: "pointer", fontFamily: font, fontWeight: 600,
+            }}>확인</button>
+          </div>
+        </Modal>
+      )}
+
+      {/* 로그아웃 확인 */}
+      {showLogout && (
+        <Modal title="로그아웃" onClose={() => setShowLogout(false)}>
+          <div style={{ color: T.sub, fontSize: 14, marginBottom: 20, lineHeight: 1.6 }}>
+            정말 로그아웃 하시겠어요?
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => setShowLogout(false)} style={{
+              flex: 1, background: T.bg, border: `1px solid ${T.border}`,
+              borderRadius: 10, padding: "10px", fontSize: 13, color: T.sub,
+              cursor: "pointer", fontFamily: font,
+            }}>취소</button>
+            <button style={{
+              flex: 1, background: T.red, border: "none",
+              borderRadius: 10, padding: "10px", fontSize: 13, color: "#fff",
+              cursor: "pointer", fontFamily: font, fontWeight: 600,
+            }}>로그아웃</button>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// ── 설정 행 컴포넌트 ──────────────────────────────────────
+function SettingRow({ item, showBorder }) {
+  const [on, setOn] = useState(item.defaultOn ?? false);
+  return (
+    <div
+      onClick={item.toggle ? undefined : item.action}
+      style={{
+        display: "flex", alignItems: "center", gap: 12,
+        padding: "13px 16px",
+        borderBottom: showBorder ? `1px solid ${T.border}` : "none",
+        cursor: item.toggle ? "default" : "pointer",
+      }}
+    >
+      <span style={{ fontSize: 16, width: 22, textAlign: "center" }}>{item.icon}</span>
+      <span style={{ flex: 1, fontSize: 14, color: T.text }}>{item.label}</span>
+      {item.toggle ? (
+        <div
+          onClick={() => setOn(v => !v)}
+          style={{
+            width: 44, height: 26, borderRadius: 13, cursor: "pointer",
+            background: on ? T.accent : T.border,
+            position: "relative", transition: "background 0.2s",
+          }}
+        >
+          <div style={{
+            width: 20, height: 20, borderRadius: "50%", background: "#fff",
+            position: "absolute", top: 3,
+            left: on ? 21 : 3,
+            transition: "left 0.2s",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
+          }} />
+        </div>
+      ) : (
+        <span style={{ color: T.muted, fontSize: 14 }}>›</span>
+      )}
+    </div>
+  );
+}
+
+// ── 모달 공통 컴포넌트 ────────────────────────────────────
+function Modal({ title, onClose, children }) {
+  return (
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 100,
+      display: "flex", alignItems: "flex-end", justifyContent: "center",
+    }}>
+      {/* 딤 */}
+      <div onClick={onClose} style={{
+        position: "absolute", inset: 0,
+        background: "rgba(0,0,0,0.4)",
+      }} />
+      {/* 시트 */}
+      <div style={{
+        position: "relative", width: "100%", maxWidth: 375,
+        background: T.surface, borderRadius: "20px 20px 0 0",
+        padding: "20px 20px 32px", zIndex: 1,
+      }}>
+        {title && (
+          <div style={{ display: "flex", justifyContent: "space-between",
+            alignItems: "center", marginBottom: 16 }}>
+            <span style={{ fontSize: 15, fontWeight: 700, color: T.text }}>{title}</span>
+            <button onClick={onClose} style={{
+              background: "none", border: "none", cursor: "pointer",
+              color: T.muted, fontSize: 18, lineHeight: 1, padding: 0,
+            }}>✕</button>
+          </div>
+        )}
+        {children}
+      </div>
+    </div>
+  );
+}
+
 // ── SCREEN 4: 마이페이지 / 스트릭 ─────────────────────────
-function MyPageScreen() {
+function MyPageScreen({ onNavigate }) {
   const streak = [true,true,true,true,false,true,true];
   const days = ["월","화","수","목","금","토","일"];
   const topTags = [
@@ -476,14 +791,15 @@ function MyPageScreen() {
       <div style={{ background: T.surface, padding: "20px 20px 16px",
         borderBottom: `1px solid ${T.border}` }}>
         <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16 }}>
-          <div style={{ width: 56, height: 56, borderRadius: "50%",
+          <div onClick={() => onNavigate("profile")} style={{ width: 56, height: 56, borderRadius: "50%",
             background: "#F0EFFF", border: `2px solid ${T.border}`,
-            display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26 }}>🦊</div>
+            display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26,
+            cursor: "pointer" }}>🦊</div>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 16, fontWeight: 700, color: T.text, letterSpacing: "-0.03em" }}>새벽달</div>
             <div style={{ fontSize: 11, color: T.muted, marginTop: 2 }}>가입 42일째 · @midnight_moon</div>
           </div>
-          <button style={{ background: T.bg, border: `1px solid ${T.border}`,
+          <button onClick={() => onNavigate("profile")} style={{ background: T.bg, border: `1px solid ${T.border}`,
             borderRadius: 8, padding: "6px 12px", fontSize: 12, color: T.sub,
             cursor: "pointer", fontFamily: font }}>편집</button>
         </div>
@@ -606,7 +922,16 @@ const tabs = [
 
 export default function App() {
   const [idx, setIdx] = useState(0);
+  // "tab" | "profile" — 바텀 탭 위에 올라오는 서브 화면 관리
+  const [subScreen, setSubScreen] = useState(null);
+
+  const handleNavigate = (screen) => setSubScreen(screen);
+  const handleBack = () => setSubScreen(null);
+
   const Screen = tabs[idx].screen;
+
+  // 프로필 화면은 바텀 네비 없이 전체 표시
+  const isSubScreen = subScreen !== null;
 
   return (
     <div style={{ background: "#E8E7E3", minHeight: "100vh",
@@ -631,26 +956,33 @@ export default function App() {
         {/* Content */}
         <div style={{ maxHeight: 660, overflowY: "auto",
           scrollbarWidth: "none", msOverflowStyle: "none" }}>
-          <Screen />
+          {isSubScreen
+            ? <ProfileScreen onBack={handleBack} />
+            : idx === 3
+              ? <MyPageScreen onNavigate={handleNavigate} />
+              : <Screen />
+          }
         </div>
 
-        {/* Bottom nav */}
-        <div style={{ background: T.surface, borderTop: `1px solid ${T.border}`,
-          display: "flex", padding: "10px 0 18px" }}>
-          {tabs.map((t, i) => (
-            <button key={t.label} onClick={() => setIdx(i)} style={{
-              flex: 1, background: "none", border: "none", cursor: "pointer",
-              display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
-              fontFamily: font
-            }}>
-              <span style={{ fontSize: 18, opacity: idx === i ? 1 : 0.3 }}>{t.icon}</span>
-              <span style={{
-                fontSize: 10, fontWeight: idx === i ? 700 : 400,
-                color: idx === i ? T.text : T.muted
-              }}>{t.label}</span>
-            </button>
-          ))}
-        </div>
+        {/* Bottom nav — 서브 화면에서는 숨김 */}
+        {!isSubScreen && (
+          <div style={{ background: T.surface, borderTop: `1px solid ${T.border}`,
+            display: "flex", padding: "10px 0 18px" }}>
+            {tabs.map((t, i) => (
+              <button key={t.label} onClick={() => setIdx(i)} style={{
+                flex: 1, background: "none", border: "none", cursor: "pointer",
+                display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
+                fontFamily: font
+              }}>
+                <span style={{ fontSize: 18, opacity: idx === i ? 1 : 0.3 }}>{t.icon}</span>
+                <span style={{
+                  fontSize: 10, fontWeight: idx === i ? 700 : 400,
+                  color: idx === i ? T.text : T.muted
+                }}>{t.label}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
