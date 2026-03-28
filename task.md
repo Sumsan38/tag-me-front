@@ -5,6 +5,7 @@
 > 언어: TypeScript (strict mode)
 > 스타일링: TailwindCSS
 > 마인드맵: D3.js
+> API Docs: http://localhost:8080/swagger-ui/index.html (접속 가능할 경우)
 
 ---
 
@@ -124,10 +125,46 @@
 
 ## Phase 2 — 핵심 기능 개발 (3~6주)
 
+### 2.5주차 — Refresh Token HttpOnly Cookie 전환 (백엔드 변경 반영)
+
+> **백엔드 변경 완료 (PR #18)** — Refresh Token이 응답 body에서 제거되고 HttpOnly Cookie로 전환됨.
+> 프론트엔드에서 아래 항목을 반영해야 정상 동작함.
+
+**필수 변경**
+- [ ] **`stores/authStore.ts` — refreshToken 관련 로직 전체 제거**:
+  - refreshToken 상태 변수 삭제
+  - localStorage/sessionStorage에 refreshToken 저장/읽기/삭제 로직 제거
+  - 브라우저가 HttpOnly Cookie를 자동 관리하므로 프론트에서 토큰을 직접 다루지 않음
+- [ ] **`api/client.ts` — Axios 인스턴스 수정**:
+  - `withCredentials: true` 설정 추가 (쿠키 자동 전송 필수)
+  - `requestTokenRefresh()` 함수에서 body 제거 (`POST /api/v1/auth/refresh` — body 없이 호출, 쿠키 자동 전송)
+  - Response Interceptor: 401 시 자동 갱신 로직 유지하되, refreshToken body 전송 부분만 제거
+- [ ] **`types/auth.ts` — 타입 수정**:
+  - `LoginRequest`에 `rememberMe: boolean` 필드 추가
+  - `LoginResponse`에서 `refreshToken` 필드 제거 → `{ userId: number; accessToken: string }`
+  - `RefreshRequest` 타입 삭제 (body 불필요)
+- [ ] **`api/auth.ts` — API 함수 수정**:
+  - `login(email, password, rememberMe)` → body에 `rememberMe` 포함
+  - `refreshToken()` → body 없이 `POST /api/v1/auth/refresh` 호출 (`withCredentials: true`로 쿠키 자동 전송)
+  - `logout()` → 기존과 동일 (서버가 Set-Cookie Max-Age=0으로 쿠키 삭제)
+- [ ] **로그인 페이지 — rememberMe UI 연동**:
+  - "로그인 상태 유지" 체크박스 값을 login API body에 포함
+  - `rememberMe=true` → 서버가 7일 영속 쿠키 발급
+  - `rememberMe=false` → 서버가 세션 쿠키 발급 (브라우저 종료 시 삭제)
+- [ ] **`middleware.ts` — 인증 가드 수정**:
+  - Refresh Token이 더 이상 JS에서 접근 불가하므로 쿠키 존재 여부로 직접 판단할 수 없음
+  - Access Token 유무 또는 `/api/v1/auth/refresh` 호출 성공 여부로 인증 상태 판단
+  - 참고: Next.js 미들웨어에서 HttpOnly Cookie는 `request.cookies.get('refreshToken')`으로 읽을 수 있음 (서버 사이드)
+
+**주의사항**
+- `withCredentials: true`가 없으면 브라우저가 쿠키를 전송하지 않음 → 401 무한 루프
+- CORS: 백엔드가 `Access-Control-Allow-Credentials: true` + 명시적 origin(`localhost:3000`)으로 설정됨. 와일드카드(*) 사용 불가
+- OAuth 콜백: 서버가 SameSite=Lax로 쿠키를 발급하므로 외부 리다이렉트 후에도 쿠키 전송 가능
+
 ### 3주차 — 인증 페이지 (Identity 도메인)
 
 **API 클라이언트**
-- [ ] `api/auth.ts` 작성:
+- [x] `api/auth.ts` 작성:
   - `register(email, password, nickname)` → POST `/api/v1/auth/register`
   - `login(email, password)` → POST `/api/v1/auth/login`
   - `refreshToken()` → POST `/api/v1/auth/refresh`
@@ -139,7 +176,7 @@
   - `confirmPasswordReset(token, newPassword)` → POST `/api/v1/auth/password-reset/confirm` (인증 불필요)
 
 **React Query 훅**
-- [ ] `hooks/useAuth.ts` 작성:
+- [x] `hooks/useAuth.ts` 작성:
   - `useRegister()` — mutation, 성공 시 자동 로그인 + 홈으로 리다이렉트
   - `useLogin()` — mutation, Access Token 저장 + 홈으로 리다이렉트
   - `useLogout()` — mutation, 토큰 클리어 + 로그인 페이지로 리다이렉트
@@ -150,35 +187,35 @@
   - provider 연결/충돌 에러 코드 처리
 
 **페이지 구현 (CSR)**
-- [ ] **회원가입 페이지** (`src/app/(guest)/register/page.tsx`):
+- [x] **회원가입 페이지** (`src/app/(guest)/register/page.tsx`):
   - 이메일, 비밀번호, 비밀번호 확인, 닉네임 입력 폼
   - `react-hook-form` + `zod`로 클라이언트 유효성 검증
   - 비밀번호 강도 표시 (8자 이상, 영문+숫자+특수문자)
   - 소셜 로그인 버튼 (Google, Kakao)
   - 이미 계정이 있으면 로그인 페이지 링크
-- [ ] **로그인 페이지** (`src/app/(guest)/login/page.tsx`):
+- [x] **로그인 페이지** (`src/app/(guest)/login/page.tsx`):
   - 이메일, 비밀번호 입력 폼
   - "로그인 상태 유지" 체크박스
   - 소셜 로그인 버튼 (Google, Kakao)
   - 회원가입 페이지 링크
-- [ ] **OAuth 콜백 페이지** (`src/app/(guest)/oauth/callback/page.tsx`):
+- [x] **OAuth 콜백 페이지** (`src/app/(guest)/oauth/callback/page.tsx`):
   - URL 쿼리 파라미터에서 authorization code 추출
   - 백엔드 콜백 API 호출 → JWT 수신 → 메인 페이지 리다이렉트
   - 에러 시 로그인 페이지로 리다이렉트 + 에러 메시지
   - provider 연결 충돌/미승인 상태 예외 UI
-- [ ] **비밀번호 찾기(재설정 요청) 페이지** (`src/app/(guest)/forgot-password/page.tsx`):
+- [x] **비밀번호 찾기(재설정 요청) 페이지** (`src/app/(guest)/forgot-password/page.tsx`):
   - 이메일 입력 폼 (react-hook-form + zod 유효성 검증)
   - "비밀번호 재설정 링크 보내기" 버튼 → `requestPasswordReset(email)` 호출
   - 성공 시: "입력하신 이메일로 재설정 링크를 발송했습니다" 안내 (이메일 존재 여부 무관하게 동일 메시지 — 보안)
   - 로그인 페이지로 돌아가기 링크
-- [ ] **비밀번호 재설정 확인 페이지** (`src/app/(guest)/reset-password/page.tsx`):
+- [x] **비밀번호 재설정 확인 페이지** (`src/app/(guest)/reset-password/page.tsx`):
   - URL 쿼리 파라미터에서 `token` 추출 (예: `/reset-password?token=xxx`)
   - 새 비밀번호, 비밀번호 확인 입력 폼
   - 비밀번호 강도 표시 (회원가입과 동일 정책: 8자 이상, 영문+숫자+특수문자)
   - "비밀번호 변경" 버튼 → `confirmPasswordReset(token, newPassword)` 호출
   - 성공 시: "비밀번호가 변경되었습니다" + 로그인 페이지로 자동 리다이렉트
   - 에러 처리: `INVALID_PASSWORD_RESET_TOKEN` → "만료되었거나 유효하지 않은 링크입니다. 다시 요청해주세요." + 비밀번호 찾기 페이지 링크
-- [ ] **비밀번호 변경 UI** (`src/app/(auth)/mypage/settings/page.tsx` 내 섹션 또는 모달):
+- [x] **비밀번호 변경 UI** (`src/app/(auth)/mypage/settings/page.tsx` 내 섹션 또는 모달):
   - 현재 비밀번호, 새 비밀번호, 새 비밀번호 확인 입력 폼
   - 비밀번호 강도 표시
   - "변경하기" 버튼 → `changePassword(currentPassword, newPassword)` 호출
@@ -187,11 +224,12 @@
     - `INVALID_CREDENTIALS(401)` → "현재 비밀번호가 일치하지 않습니다"
     - `PASSWORD_NOT_SUPPORTED(400)` → "소셜 로그인 계정은 비밀번호를 변경할 수 없습니다" (소셜 전용 계정 진입 자체를 차단하는 것이 이상적)
   - 소셜 전용 계정(`provider` 정보 기반)은 비밀번호 변경 섹션 자체를 숨기거나 비활성화
-- [ ] **로그인 페이지에 "비밀번호를 잊으셨나요?" 링크 추가**: `/forgot-password`로 이동
-- [ ] **인증 가드 미들웨어** (`middleware.ts`):
+- [x] **로그인 페이지에 "비밀번호를 잊으셨나요?" 링크 추가**: `/forgot-password`로 이동
+- [x] **인증 가드 미들웨어** (`middleware.ts`):
   - 인증 필요 경로 접근 시 Access Token 없으면 로그인 페이지로 리다이렉트
   - 인증 불필요 경로 (로그인, 회원가입, 비밀번호 찾기, 비밀번호 재설정)에서 이미 로그인 시 홈으로 리다이렉트
   - 공개 라우트(`/feed`, `/users/[id]`, `/trending`, `/challenges/[id]`, `/circles/[id]`)는 인증 없이 접근 가능하도록 예외 처리
+  - ※ Access Token이 메모리 기반이므로 레이아웃 가드(`(auth)/layout.tsx`, `(guest)/layout.tsx`)로 구현
 
 ### 4주차 — 일기 기능 (Diary 도메인)
 
