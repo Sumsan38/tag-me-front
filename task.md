@@ -133,6 +133,9 @@
   - `logout()` → POST `/api/v1/auth/logout`
   - `googleOAuthUrl()` → GET `/api/v1/auth/oauth/google`
   - `kakaoOAuthUrl()` → GET `/api/v1/auth/oauth/kakao`
+  - `changePassword(currentPassword, newPassword)` → PUT `/api/v1/auth/password` (인증 필수, Authorization 헤더 자동 첨부)
+  - `requestPasswordReset(email)` → POST `/api/v1/auth/password-reset` (인증 불필요)
+  - `confirmPasswordReset(token, newPassword)` → POST `/api/v1/auth/password-reset/confirm` (인증 불필요)
 
 **React Query 훅**
 - [ ] `hooks/useAuth.ts` 작성:
@@ -140,6 +143,9 @@
   - `useLogin()` — mutation, Access Token 저장 + 홈으로 리다이렉트
   - `useLogout()` — mutation, 토큰 클리어 + 로그인 페이지로 리다이렉트
   - `useCurrentUser()` — query, 현재 로그인한 유저 정보
+  - `useChangePassword()` — mutation, 성공 시 Access Token 제거 + 로그인 페이지로 리다이렉트 (서버가 기존 토큰을 블랙리스트 처리)
+  - `useRequestPasswordReset()` — mutation, 성공 시 "이메일을 확인하세요" 안내
+  - `useConfirmPasswordReset()` — mutation, 성공 시 "비밀번호가 변경되었습니다" + 로그인 페이지로 리다이렉트
   - provider 연결/충돌 에러 코드 처리
 
 **페이지 구현 (CSR)**
@@ -159,9 +165,31 @@
   - 백엔드 콜백 API 호출 → JWT 수신 → 메인 페이지 리다이렉트
   - 에러 시 로그인 페이지로 리다이렉트 + 에러 메시지
   - provider 연결 충돌/미승인 상태 예외 UI
+- [ ] **비밀번호 찾기(재설정 요청) 페이지** (`src/app/(guest)/forgot-password/page.tsx`):
+  - 이메일 입력 폼 (react-hook-form + zod 유효성 검증)
+  - "비밀번호 재설정 링크 보내기" 버튼 → `requestPasswordReset(email)` 호출
+  - 성공 시: "입력하신 이메일로 재설정 링크를 발송했습니다" 안내 (이메일 존재 여부 무관하게 동일 메시지 — 보안)
+  - 로그인 페이지로 돌아가기 링크
+- [ ] **비밀번호 재설정 확인 페이지** (`src/app/(guest)/reset-password/page.tsx`):
+  - URL 쿼리 파라미터에서 `token` 추출 (예: `/reset-password?token=xxx`)
+  - 새 비밀번호, 비밀번호 확인 입력 폼
+  - 비밀번호 강도 표시 (회원가입과 동일 정책: 8자 이상, 영문+숫자+특수문자)
+  - "비밀번호 변경" 버튼 → `confirmPasswordReset(token, newPassword)` 호출
+  - 성공 시: "비밀번호가 변경되었습니다" + 로그인 페이지로 자동 리다이렉트
+  - 에러 처리: `INVALID_PASSWORD_RESET_TOKEN` → "만료되었거나 유효하지 않은 링크입니다. 다시 요청해주세요." + 비밀번호 찾기 페이지 링크
+- [ ] **비밀번호 변경 UI** (`src/app/(auth)/mypage/settings/page.tsx` 내 섹션 또는 모달):
+  - 현재 비밀번호, 새 비밀번호, 새 비밀번호 확인 입력 폼
+  - 비밀번호 강도 표시
+  - "변경하기" 버튼 → `changePassword(currentPassword, newPassword)` 호출
+  - 성공 시: Access Token 제거 + `queryClient.clear()` + "비밀번호가 변경되었습니다. 다시 로그인해주세요." toast + 로그인 페이지로 리다이렉트
+  - 에러 처리:
+    - `INVALID_CREDENTIALS(401)` → "현재 비밀번호가 일치하지 않습니다"
+    - `PASSWORD_NOT_SUPPORTED(400)` → "소셜 로그인 계정은 비밀번호를 변경할 수 없습니다" (소셜 전용 계정 진입 자체를 차단하는 것이 이상적)
+  - 소셜 전용 계정(`provider` 정보 기반)은 비밀번호 변경 섹션 자체를 숨기거나 비활성화
+- [ ] **로그인 페이지에 "비밀번호를 잊으셨나요?" 링크 추가**: `/forgot-password`로 이동
 - [ ] **인증 가드 미들웨어** (`middleware.ts`):
   - 인증 필요 경로 접근 시 Access Token 없으면 로그인 페이지로 리다이렉트
-  - 인증 불필요 경로 (로그인, 회원가입)에서 이미 로그인 시 홈으로 리다이렉트
+  - 인증 불필요 경로 (로그인, 회원가입, 비밀번호 찾기, 비밀번호 재설정)에서 이미 로그인 시 홈으로 리다이렉트
   - 공개 라우트(`/feed`, `/users/[id]`, `/trending`, `/challenges/[id]`, `/circles/[id]`)는 인증 없이 접근 가능하도록 예외 처리
 
 ### 4주차 — 일기 기능 (Diary 도메인)
@@ -336,8 +364,8 @@
   - 해당 유저의 공개 게시글 목록
   - 본인 프로필이면 수정 버튼
 - [ ] **프로필 수정 페이지** (`src/app/(auth)/mypage/edit/page.tsx`):
-  - 프로필 이미지 변경 (S3 업로드)
-  - 닉네임 변경
+  - 프로필 이미지 변경 (S3 Pre-signed URL 연동 후 구현 — 현재 닉네임 변경만 완료)
+  - 닉네임 변경 ✅ 완료
 
 ### 9~10주차 — 써클 + 챌린지 UI
 
@@ -518,12 +546,21 @@
 ### 19.5주차 — 회원 탈퇴 플로우
 
 - [ ] `api/user.ts` 추가:
-  - `deleteAccount()` → DELETE `/api/v1/users/me`
-- [ ] **회원 탈퇴 UI** (`src/app/(auth)/mypage/settings/page.tsx` 또는 설정 모달):
-  - 탈퇴 전 확인 문구 및 되돌릴 수 없음 안내
-  - 성공 시 Access Token 제거, `queryClient.clear()`, 로그인 페이지 리다이렉트
-  - 탈퇴 후 공개 게시글은 익명화된다는 정책 문구 노출
-  - 탈퇴 후 소셜 재로그인 정책 문구 노출
+  - `deleteAccount(password?)` → DELETE `/api/v1/users/me` (Request body: `{ password }`, 소셜 전용 계정은 body 없이 요청)
+- [ ] `hooks/useAuth.ts`에 `useDeleteAccount()` 추가:
+  - mutation, 성공 시 Access Token 제거 + `queryClient.clear()` + 로그인 페이지 리다이렉트
+  - 에러 처리: `INVALID_CREDENTIALS(401)` → "비밀번호가 일치하지 않습니다"
+- [ ] **회원 탈퇴 UI** (`src/app/(auth)/mypage/settings/page.tsx` 내 "계정 삭제" 섹션):
+  - 탈퇴 버튼 클릭 시 확인 모달 표시:
+    - "정말 탈퇴하시겠습니까?" 경고 문구
+    - "탈퇴 후 30일 이내에는 동일 이메일로 재가입할 수 없습니다" 안내
+    - "공개 게시글은 익명화되며, 개인 일기·태그 데이터는 삭제됩니다" 정책 안내
+    - "소셜 로그인으로 가입한 경우에도 30일간 동일 이메일로 재로그인할 수 없습니다" 안내
+  - 이메일 가입 계정: 현재 비밀번호 입력 필드 표시 → `deleteAccount(password)` 호출
+  - 소셜 전용 계정(`provider` 정보 기반): 비밀번호 입력 없이 "탈퇴하기" 버튼만 표시 → `deleteAccount()` 호출
+  - 성공 시: "탈퇴가 완료되었습니다" toast + 로그인 페이지로 리다이렉트
+- [ ] **재가입 차단 에러 처리** (회원가입·소셜 로그인 시):
+  - `WITHDRAWAL_COOLDOWN` 에러 코드 수신 시 "탈퇴 후 30일이 경과하지 않아 가입할 수 없습니다" 안내
 
 ### 20주차 — 1:1 태그 친구
 
