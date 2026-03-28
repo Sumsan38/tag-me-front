@@ -91,7 +91,8 @@
 - [x] **검색/추천/공유 계약 타입 반영**:
   - highlight 필드, 추천 결과 정렬 근거, 공유 리포트 식별자 타입 정의
 - [x] **도메인별 타입 정의 파일 생성**:
-  - `types/auth.ts` — User, LoginRequest, RegisterRequest, TokenResponse
+  - `types/auth.ts` — User, LoginRequest, RegisterRequest, TokenResponse, WithdrawRequest
+    - Identity 에러 코드 매핑 포함: `IDENTITY_003`(비밀번호 불일치), `IDENTITY_015`(이미 탈퇴한 계정), `IDENTITY_016`(탈퇴 30일 유예)
   - `types/diary.ts` — Diary, CreateDiaryRequest, DiaryListFilter
   - `types/feed.ts` — Post, Comment, Like, CreatePostRequest
   - `types/tag.ts` — Tag, TagAutoCompleteResponse
@@ -545,11 +546,19 @@
 
 ### 19.5주차 — 회원 탈퇴 플로우
 
+> **백엔드 API 구현 완료** — `DELETE /api/v1/users/me` (인증 필수)
+> - 이메일 가입 계정: `{ "password": "..." }` body 필수 (미전송 시 401)
+> - 소셜 전용 계정: body 없이 요청 가능
+> - 성공 시 서버가 Access Token 블랙리스트 + Refresh Token 삭제 처리
+> - 탈퇴 후 30일 내 재가입/소셜 재로그인 차단 (`WITHDRAWAL_COOLDOWN`)
+
 - [ ] `api/user.ts` 추가:
   - `deleteAccount(password?)` → DELETE `/api/v1/users/me` (Request body: `{ password }`, 소셜 전용 계정은 body 없이 요청)
 - [ ] `hooks/useAuth.ts`에 `useDeleteAccount()` 추가:
   - mutation, 성공 시 Access Token 제거 + `queryClient.clear()` + 로그인 페이지 리다이렉트
-  - 에러 처리: `INVALID_CREDENTIALS(401)` → "비밀번호가 일치하지 않습니다"
+  - 에러 처리:
+    - `IDENTITY_003`(401) → "비밀번호가 일치하지 않습니다"
+    - `IDENTITY_015`(400) → "이미 탈퇴한 계정입니다"
 - [ ] **회원 탈퇴 UI** (`src/app/(auth)/mypage/settings/page.tsx` 내 "계정 삭제" 섹션):
   - 탈퇴 버튼 클릭 시 확인 모달 표시:
     - "정말 탈퇴하시겠습니까?" 경고 문구
@@ -560,7 +569,8 @@
   - 소셜 전용 계정(`provider` 정보 기반): 비밀번호 입력 없이 "탈퇴하기" 버튼만 표시 → `deleteAccount()` 호출
   - 성공 시: "탈퇴가 완료되었습니다" toast + 로그인 페이지로 리다이렉트
 - [ ] **재가입 차단 에러 처리** (회원가입·소셜 로그인 시):
-  - `WITHDRAWAL_COOLDOWN` 에러 코드 수신 시 "탈퇴 후 30일이 경과하지 않아 가입할 수 없습니다" 안내
+  - `IDENTITY_016`(409) 수신 시 "탈퇴 후 30일이 경과하지 않아 가입할 수 없습니다" 안내
+  - 회원가입 페이지 + OAuth 콜백 페이지 양쪽에서 처리
 
 ### 20주차 — 1:1 태그 친구
 
