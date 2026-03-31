@@ -4,8 +4,10 @@
  * 인증 상태를 관리하는 Zustand 스토어.
  *
  * 설계 원칙:
- *   - 기본적으로 Access Token과 Refresh Token은 메모리(Zustand)에만 보관한다.
- *   - "로그인 상태 유지" 체크 시에만 localStorage에 토큰을 저장하여
+ *   - Access Token은 메모리(Zustand)에 보관한다.
+ *   - Refresh Token은 HttpOnly Cookie로 브라우저가 자동 관리한다.
+ *     프론트엔드에서 직접 다루지 않는다.
+ *   - "로그인 상태 유지" 체크 시 localStorage에 accessToken + user를 저장하여
  *     새 탭/새로고침에서도 인증을 유지한다.
  *   - isAuthenticated는 accessToken 유무로 파생되는 값이므로 selector로 계산한다.
  *   - isHydrated는 CSR 레이아웃 가드에서 hydration 완료 전 flash를 막는 데 사용한다.
@@ -24,7 +26,6 @@ const STORAGE_KEY = 'tag-me:auth';
 
 interface PersistedAuth {
   accessToken: string;
-  refreshToken: string;
   user: User;
 }
 
@@ -60,15 +61,14 @@ function clearStorage(): void {
 
 export interface AuthState {
   accessToken: string | null;
-  refreshToken: string | null;
   user: User | null;
   isHydrated: boolean;
 
   /** "로그인 상태 유지" 체크 여부. true이면 토큰을 localStorage에도 저장한다. */
   rememberMe: boolean;
 
-  setAuth: (accessToken: string, refreshToken: string, user: User) => void;
-  setTokens: (accessToken: string, refreshToken: string) => void;
+  setAuth: (accessToken: string, user: User) => void;
+  setAccessToken: (accessToken: string) => void;
   setUser: (user: User) => void;
   clearAuth: () => void;
   setHydrated: () => void;
@@ -90,25 +90,24 @@ export const selectIsAuthenticated = (state: AuthState) =>
 
 export const useAuthStore = create<AuthState>()((set, get) => ({
   accessToken: null,
-  refreshToken: null,
   user: null,
   isHydrated: false,
   rememberMe: false,
 
-  setAuth: (accessToken, refreshToken, user) => {
-    set({ accessToken, refreshToken, user });
+  setAuth: (accessToken, user) => {
+    set({ accessToken, user });
     if (get().rememberMe) {
-      persistToStorage({ accessToken, refreshToken, user });
+      persistToStorage({ accessToken, user });
     }
   },
 
-  setTokens: (accessToken, refreshToken) => {
-    set({ accessToken, refreshToken });
+  setAccessToken: (accessToken) => {
+    set({ accessToken });
     // rememberMe 상태에서 토큰 갱신 시 localStorage도 업데이트
     if (get().rememberMe) {
       const user = get().user;
       if (user) {
-        persistToStorage({ accessToken, refreshToken, user });
+        persistToStorage({ accessToken, user });
       }
     }
   },
@@ -116,15 +115,15 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
   setUser: (user) => {
     set({ user });
     if (get().rememberMe) {
-      const { accessToken, refreshToken } = get();
-      if (accessToken && refreshToken) {
-        persistToStorage({ accessToken, refreshToken, user });
+      const { accessToken } = get();
+      if (accessToken) {
+        persistToStorage({ accessToken, user });
       }
     }
   },
 
   clearAuth: () => {
-    set({ accessToken: null, refreshToken: null, user: null, rememberMe: false });
+    set({ accessToken: null, user: null, rememberMe: false });
     clearStorage();
   },
 
@@ -134,6 +133,10 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
 
   setRememberMe: (value) => {
     set({ rememberMe: value });
+    // false로 전환 시 이전 세션에서 남아 있을 수 있는 localStorage를 정리한다.
+    if (!value) {
+      clearStorage();
+    }
   },
 
   restoreAuth: () => {
@@ -141,7 +144,6 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
     if (persisted) {
       set({
         accessToken: persisted.accessToken,
-        refreshToken: persisted.refreshToken,
         user: persisted.user,
         rememberMe: true,
       });

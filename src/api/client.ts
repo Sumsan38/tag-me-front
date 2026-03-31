@@ -10,6 +10,11 @@
  *       - 동시에 여러 요청이 401을 받을 경우 갱신 요청이 중복되지 않도록 Promise 큐 관리
  *       - 갱신 실패 시 로그인 페이지 리다이렉트
  *   - Response Interceptor: ApiEnvelope<T> 에서 data 필드 자동 추출
+ *
+ * Refresh Token 관리:
+ *   - Refresh Token은 HttpOnly Cookie로 브라우저가 자동 관리한다.
+ *   - withCredentials: true 설정으로 모든 요청에 쿠키가 자동 전송된다.
+ *   - 토큰 갱신 시 body 없이 POST /api/v1/auth/refresh 호출 (쿠키 자동 전송).
  */
 
 import axios, {
@@ -58,21 +63,13 @@ function getAccessToken(): string | null {
 }
 
 /**
- * 토큰 쌍 저장 함수.
+ * Access Token 저장 함수.
  *
  * Silent Refresh(토큰 갱신) 성공 후 응답 인터셉터에서 호출한다.
- * setTokens는 토큰 쌍만 교체하며 user 정보는 유지된다.
+ * Refresh Token은 HttpOnly Cookie로 브라우저가 관리하므로 저장하지 않는다.
  */
-function setTokens(accessToken: string, refreshToken: string): void {
-  useAuthStore.getState().setTokens(accessToken, refreshToken);
-}
-
-/**
- * Refresh Token 조회 함수.
- * 토큰 갱신 요청 시 body에 포함하기 위해 사용한다.
- */
-function getRefreshToken(): string | null {
-  return useAuthStore.getState().refreshToken;
+function setAccessToken(accessToken: string): void {
+  useAuthStore.getState().setAccessToken(accessToken);
 }
 
 /**
@@ -114,9 +111,8 @@ const apiClient = axios.create({
   timeout: 10_000,
   headers: { 'Content-Type': 'application/json' },
   /**
-   * 백엔드 CORS 정책에 따라 credentials 포함 여부를 설정한다.
-   * 현재 Refresh Token은 응답 body로 전달받아 메모리(Zustand)에 저장하며,
-   * 토큰 갱신 시 body에 포함하여 전송한다.
+   * HttpOnly Cookie(Refresh Token)를 자동 전송하기 위해 필수.
+   * 백엔드 CORS: Access-Control-Allow-Credentials: true + 명시적 origin.
    */
   withCredentials: true,
 });
@@ -160,24 +156,18 @@ function rejectRefreshQueue(error: unknown): void {
 // ---------------------------------------------------------------------------
 
 /**
- * Refresh Token을 이용해 새로운 토큰 쌍을 발급받는다.
+ * HttpOnly Cookie의 Refresh Token을 이용해 새로운 Access Token을 발급받는다.
+ * body 없이 호출하며, 브라우저가 쿠키를 자동 전송한다.
  * apiClient 를 사용하면 인터셉터가 재귀 호출되므로 axios 원본을 사용한다.
  */
-async function requestTokenRefresh(): Promise<{
-  accessToken: string;
-  refreshToken: string;
-}> {
-  const currentRefreshToken = getRefreshToken();
-  if (!currentRefreshToken) {
-    throw new Error('No refresh token available');
-  }
-
-  const response = await axios.post<
-    ApiEnvelope<{ accessToken: string; refreshToken: string }>
-  >(
+async function requestTokenRefresh(): Promise<{ accessToken: string }> {
+  const response = await axios.post<ApiEnvelope<{ accessToken: string }>>(
     `${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/refresh`,
-    { refreshToken: currentRefreshToken },
-    { headers: { 'Content-Type': 'application/json' } },
+    null,
+    {
+      headers: { 'Content-Type': 'application/json' },
+      withCredentials: true,
+    },
   );
   return response.data.data;
 }
@@ -230,7 +220,7 @@ apiClient.interceptors.response.use(
   /**
    * 에러 응답 처리.
    *
-   * 401: Refresh Token으로 갱신 시도 후 원래 요청 재시도.
+   * 401: Refresh Token(HttpOnly Cookie)으로 갱신 시도 후 원래 요청 재시도.
    *   - 갱신 중 추가 401 요청은 큐에 쌓아 갱신 완료 후 일괄 재시도.
    *   - 갱신 실패 시 인증 상태 초기화 후 로그인 페이지 리다이렉트.
    */
@@ -260,11 +250,11 @@ apiClient.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const tokens = await requestTokenRefresh();
-        setTokens(tokens.accessToken, tokens.refreshToken);
-        resolveRefreshQueue(tokens.accessToken);
+        const { accessToken } = await requestTokenRefresh();
+        setAccessToken(accessToken);
+        resolveRefreshQueue(accessToken);
 
-        originalRequest.headers.Authorization = `Bearer ${tokens.accessToken}`;
+        originalRequest.headers.Authorization = `Bearer ${accessToken}`;
         return apiClient(originalRequest);
       } catch (refreshError) {
         rejectRefreshQueue(refreshError);

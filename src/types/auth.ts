@@ -50,6 +50,7 @@ export interface User {
 export interface LoginRequest {
   email: string;
   password: string;
+  rememberMe: boolean;
 }
 
 export interface RegisterRequest {
@@ -64,13 +65,12 @@ export interface RegisterRequest {
 
 /**
  * 로그인 및 토큰 갱신(Silent Refresh) 응답.
- * 백엔드가 accessToken, refreshToken을 모두 응답 body에 포함한다.
- * accessToken과 refreshToken은 메모리(Zustand)에만 보관한다.
+ * Refresh Token은 HttpOnly Cookie로 전환되어 응답 body에 포함되지 않는다.
+ * accessToken만 메모리(Zustand)에 보관한다.
  */
 export interface LoginResponse {
   userId: number;
   accessToken: string;
-  refreshToken: string;
 }
 
 /**

@@ -113,7 +113,11 @@ export default function LoginPage() {
 
   function onSubmit(values: LoginFormValues) {
     if (isAnyPending) return;
-    login.mutate({ email: values.email, password: values.password, rememberMe });
+    login.mutate({
+      email: values.email,
+      password: values.password,
+      rememberMe,
+    });
   }
 
   function handleOAuthLogin(provider: 'google' | 'kakao') {

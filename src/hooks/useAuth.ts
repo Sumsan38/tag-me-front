@@ -69,22 +69,17 @@ export function useRegister() {
       const loginResponse = await authApi.login({
         email: data.email,
         password: data.password,
+        rememberMe: false,
       });
       return loginResponse;
     },
     onSuccess: async (loginResponse) => {
       // 프로필 조회 API가 Authorization 헤더를 필요로 하므로
       // getCurrentUser() 호출 전에 토큰을 먼저 스토어에 저장한다.
-      useAuthStore
-        .getState()
-        .setTokens(loginResponse.accessToken, loginResponse.refreshToken);
+      useAuthStore.getState().setAccessToken(loginResponse.accessToken);
 
       const profile = await authApi.getCurrentUser();
-      setAuth(
-        loginResponse.accessToken,
-        loginResponse.refreshToken,
-        toUser(profile),
-      );
+      setAuth(loginResponse.accessToken, toUser(profile));
       toast.success('회원가입이 완료되었습니다.');
       router.replace(ROUTES.FEED);
     },
@@ -108,26 +103,17 @@ export function useLogin() {
   const setAuth = useAuthStore((s) => s.setAuth);
 
   return useMutation({
-    mutationFn: (data: LoginRequest & { rememberMe?: boolean }) =>
-      authApi.login({ email: data.email, password: data.password }),
+    mutationFn: (data: LoginRequest) => authApi.login(data),
     onSuccess: async (loginResponse, variables) => {
-      // "로그인 상태 유지" 체크 시 rememberMe를 먼저 활성화해야
-      // 이후 setAuth에서 localStorage에 토큰을 저장한다.
-      if (variables.rememberMe) {
-        useAuthStore.getState().setRememberMe(true);
-      }
+      // rememberMe 상태를 항상 동기화한다.
+      // false일 때 명시적으로 내려야 이전 세션의 true가 남지 않는다.
+      useAuthStore.getState().setRememberMe(variables.rememberMe);
 
       // 임시로 토큰만 저장 (프로필 조회 시 Authorization 헤더 필요)
-      useAuthStore
-        .getState()
-        .setTokens(loginResponse.accessToken, loginResponse.refreshToken);
+      useAuthStore.getState().setAccessToken(loginResponse.accessToken);
 
       const profile = await authApi.getCurrentUser();
-      setAuth(
-        loginResponse.accessToken,
-        loginResponse.refreshToken,
-        toUser(profile),
-      );
+      setAuth(loginResponse.accessToken, toUser(profile));
       toast.success('로그인되었습니다.');
 
       // redirect 쿼리 파라미터가 있으면 해당 경로로, 없으면 홈으로

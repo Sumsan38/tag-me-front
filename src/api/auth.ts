@@ -13,6 +13,7 @@
  *   - GET  /api/v1/users/me        — 본인 프로필 조회
  */
 
+import axios from 'axios';
 import apiClient from '@/api/client';
 import type {
   LoginRequest,
@@ -24,6 +25,17 @@ import type {
 } from '@/types/auth';
 
 // ---------------------------------------------------------------------------
+// Envelope 타입 (client.ts와 동일 구조, silent refresh 전용)
+// ---------------------------------------------------------------------------
+
+interface ApiEnvelope<T = unknown> {
+  success: boolean;
+  data: T;
+  error?: { code: string; message: string };
+  timestamp: string;
+}
+
+// ---------------------------------------------------------------------------
 // 인증 API
 // ---------------------------------------------------------------------------
 
@@ -32,13 +44,31 @@ export async function register(data: RegisterRequest): Promise<void> {
   await apiClient.post('/api/v1/auth/register', data);
 }
 
-/** 로그인. userId + accessToken + refreshToken 반환. */
+/** 로그인. userId + accessToken 반환. Refresh Token은 HttpOnly Cookie로 설정됨. */
 export async function login(data: LoginRequest): Promise<LoginResponse> {
   const response = await apiClient.post<LoginResponse>(
     '/api/v1/auth/login',
     data,
   );
   return response.data;
+}
+
+/**
+ * HttpOnly Cookie의 Refresh Token으로 새 Access Token을 발급받는다.
+ * body 없이 호출하며, 브라우저가 쿠키를 자동 전송한다.
+ * AuthHydration에서 앱 초기 진입 시 silent refresh에 사용한다.
+ * apiClient를 사용하면 인터셉터가 개입하므로 axios 원본을 사용한다.
+ */
+export async function silentRefresh(): Promise<{ accessToken: string }> {
+  const response = await axios.post<ApiEnvelope<{ accessToken: string }>>(
+    `${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/refresh`,
+    null,
+    {
+      headers: { 'Content-Type': 'application/json' },
+      withCredentials: true,
+    },
+  );
+  return response.data.data;
 }
 
 /** 로그아웃. Authorization 헤더의 Access Token을 블랙리스트에 등록. */

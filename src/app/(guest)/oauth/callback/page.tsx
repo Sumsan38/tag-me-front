@@ -81,10 +81,7 @@ export default function OAuthCallbackPage() {
 
       // 프로필 조회 API(/api/v1/users/me)가 Authorization 헤더를 필요로 하므로
       // getCurrentUser() 호출 전에 임시로 토큰을 스토어에 저장한다.
-      useAuthStore.getState().setTokens(
-        loginResponse.accessToken,
-        loginResponse.refreshToken,
-      );
+      useAuthStore.getState().setAccessToken(loginResponse.accessToken);
 
       const profile = await getCurrentUser();
 
@@ -97,11 +94,7 @@ export default function OAuthCallbackPage() {
       };
 
       // 토큰과 사용자 정보를 한 번에 스토어에 저장한다.
-      useAuthStore.getState().setAuth(
-        loginResponse.accessToken,
-        loginResponse.refreshToken,
-        user,
-      );
+      useAuthStore.getState().setAuth(loginResponse.accessToken, user);
 
       router.replace(ROUTES.FEED);
     } catch {
