@@ -131,27 +131,27 @@
 > 프론트엔드에서 아래 항목을 반영해야 정상 동작함.
 
 **필수 변경**
-- [ ] **`stores/authStore.ts` — refreshToken 관련 로직 전체 제거**:
+- [x] **`stores/authStore.ts` — refreshToken 관련 로직 전체 제거**:
   - refreshToken 상태 변수 삭제
   - localStorage/sessionStorage에 refreshToken 저장/읽기/삭제 로직 제거
   - 브라우저가 HttpOnly Cookie를 자동 관리하므로 프론트에서 토큰을 직접 다루지 않음
-- [ ] **`api/client.ts` — Axios 인스턴스 수정**:
+- [x] **`api/client.ts` — Axios 인스턴스 수정**:
   - `withCredentials: true` 설정 추가 (쿠키 자동 전송 필수)
   - `requestTokenRefresh()` 함수에서 body 제거 (`POST /api/v1/auth/refresh` — body 없이 호출, 쿠키 자동 전송)
   - Response Interceptor: 401 시 자동 갱신 로직 유지하되, refreshToken body 전송 부분만 제거
-- [ ] **`types/auth.ts` — 타입 수정**:
+- [x] **`types/auth.ts` — 타입 수정**:
   - `LoginRequest`에 `rememberMe: boolean` 필드 추가
   - `LoginResponse`에서 `refreshToken` 필드 제거 → `{ userId: number; accessToken: string }`
   - `RefreshRequest` 타입 삭제 (body 불필요)
-- [ ] **`api/auth.ts` — API 함수 수정**:
+- [x] **`api/auth.ts` — API 함수 수정**:
   - `login(email, password, rememberMe)` → body에 `rememberMe` 포함
   - `refreshToken()` → body 없이 `POST /api/v1/auth/refresh` 호출 (`withCredentials: true`로 쿠키 자동 전송)
   - `logout()` → 기존과 동일 (서버가 Set-Cookie Max-Age=0으로 쿠키 삭제)
-- [ ] **로그인 페이지 — rememberMe UI 연동**:
+- [x] **로그인 페이지 — rememberMe UI 연동**:
   - "로그인 상태 유지" 체크박스 값을 login API body에 포함
   - `rememberMe=true` → 서버가 7일 영속 쿠키 발급
   - `rememberMe=false` → 서버가 세션 쿠키 발급 (브라우저 종료 시 삭제)
-- [ ] **`middleware.ts` — 인증 가드 수정**:
+- [x] **`middleware.ts` — 인증 가드 수정**:
   - Refresh Token이 더 이상 JS에서 접근 불가하므로 쿠키 존재 여부로 직접 판단할 수 없음
   - Access Token 유무 또는 `/api/v1/auth/refresh` 호출 성공 여부로 인증 상태 판단
   - 참고: Next.js 미들웨어에서 HttpOnly Cookie는 `request.cookies.get('refreshToken')`으로 읽을 수 있음 (서버 사이드)
@@ -233,75 +233,134 @@
 
 ### 4주차 — 일기 기능 (Diary 도메인)
 
+> **백엔드 API 현황 (2026-03-31 기준)**
+>
+> | 엔드포인트 | 백엔드 상태 | 비고 |
+> |---|---|---|
+> | `POST /api/v1/diaries` | **구현 완료** | 요청: `{ title, content, mood, tagNames }` |
+> | `GET /api/v1/diaries?year=&month=&tagIds=` | **구현 완료** | **Cursor 아님 — 월별 조회** (`year`, `month` 필수 파라미터). `types/diary.ts`의 `DiaryListFilter` 수정 필요 |
+> | `GET /api/v1/diaries/{id}` | **구현 완료** | |
+> | `PUT /api/v1/diaries/{id}` | **구현 완료** | 전체 필드 필수 (PATCH 아님). `UpdateDiaryRequest`를 non-optional로 수정 필요 |
+> | `DELETE /api/v1/diaries/{id}` | **구현 완료** | |
+> | `GET /api/v1/diaries/{id}/recommended-feeds` | **미구현** | 백엔드 6주차 Search 도메인에서 구현 예정 |
+> | `GET /api/v1/diaries/retrospect` | **미구현** | |
+>
+> **`types/diary.ts` 동기화 필요 사항:**
+> - `Diary` 인터페이스에 `tagNames: string[]` 필드 추가 (백엔드 응답에 태그 display name 포함)
+> - `DiaryListFilter`를 Cursor 기반 → 월별 조회(`year: number`, `month: number`, `tagIds?: number[]`)로 변경
+> - `UpdateDiaryRequest`의 optional 필드들을 필수로 변경 (백엔드는 PUT 전체 교체 방식)
+> - `Diary.id` 타입: 백엔드는 `Long`(number) — `string`에서 `number`로 변경 검토
+
 **API + 훅**
-- [ ] `api/diary.ts` 작성:
-  - `createDiary(data)` → POST `/api/v1/diaries`
-  - `getDiaries(filter)` → GET `/api/v1/diaries` (Cursor 페이지네이션)
-  - `getDiary(id)` → GET `/api/v1/diaries/{id}`
-  - `updateDiary(id, data)` → PUT `/api/v1/diaries/{id}`
-  - `deleteDiary(id)` → DELETE `/api/v1/diaries/{id}`
-  - `getRecommendedFeeds(diaryId)` → GET `/api/v1/diaries/{id}/recommended-feeds`
-  - `getRetrospect()` → GET `/api/v1/diaries/retrospect`
-- [ ] `hooks/useDiary.ts` 작성:
-  - `useCreateDiary()` — mutation, 낙관적 업데이트 (일기 목록에 즉시 추가)
-  - `useDiaries(filter)` — infinite query, Cursor 페이지네이션
+- [x] `api/diary.ts` 작성:
+  - `createDiary(data)` → POST `/api/v1/diaries` — ✅ 구현 완료
+  - `getMonthlyDiaries(year, month, tagIds?)` → GET `/api/v1/diaries` — ✅ 구현 완료 (**월별 조회, Cursor 아님**)
+  - `getDiary(id)` → GET `/api/v1/diaries/{id}` — ✅ 구현 완료
+  - `updateDiary(id, data)` → PUT `/api/v1/diaries/{id}` — ✅ 구현 완료
+  - `deleteDiary(id)` → DELETE `/api/v1/diaries/{id}` — ✅ 구현 완료
+  - `getRecommendedFeeds(diaryId)` → GET `/api/v1/diaries/{id}/recommended-feeds` — ❌ 백엔드 미구현
+  - `getRetrospect()` → GET `/api/v1/diaries/retrospect` — ❌ 백엔드 미구현
+- [x] `api/tag.ts` 작성:
+  - `autocomplete(query)` → GET `/api/v1/tags/autocomplete?q=` — ✅ 구현 완료
+  - `getRelatedTags(tagId)` → GET `/api/v1/tags/{id}/related` — ✅ 구현 완료
+- [x] `hooks/useDiary.ts` 작성:
+  - `useCreateDiary()` — mutation, 성공 시 replace로 상세 이동 (히스토리 정리)
+  - `useMonthlyDiaries(year, month, tagIds?)` — query (**월별 조회, infinite query 아님**)
   - `useDiary(id)` — query
-  - `useUpdateDiary()` — mutation
-  - `useDeleteDiary()` — mutation
-  - `useRecommendedFeeds(diaryId)` — query (일기 저장 후 활성화)
-  - `useRetrospect()` — query
+  - `useUpdateDiary()` — mutation, 훅 레벨에서는 캐시 무효화 + toast만 처리 (라우트 이동은 호출부에서 `onSuccess` 콜백으로)
+  - `useDeleteDiary()` — mutation, 훅 레벨에서는 detail 캐시 removeQueries + 목록 invalidate + toast (라우트 이동은 호출부 `onSuccess`)
+  - `useRecommendedFeeds(diaryId)` — ❌ 백엔드 미구현, 추후 연동
+  - `useRetrospect()` — ❌ 백엔드 미구현, 추후 연동
+- [x] `hooks/useTagAutocomplete.ts` 작성: debounce + React Query 자동완성 훅
 
 **태그 입력 컴포넌트 (공통)**
-- [ ] **`TagInput` 컴포넌트** (`components/tag/TagInput.tsx`):
-  - `#` 입력 시 자동완성 드롭다운 표시
-  - 백엔드 `GET /api/v1/tags/autocomplete?q=` 호출 (debounce 300ms)
+- [x] **`TagInput` 컴포넌트** (`components/tag/TagInput.tsx`):
+  - 자동완성 드롭다운 (300ms debounce, `useTagAutocomplete` 연동)
   - 태그 선택 또는 Enter 시 태그 칩으로 추가
-  - 태그 칩 삭제 (X 버튼)
+  - 태그 칩 삭제 (X 버튼), 태그 팔레트 디자인 토큰(`TAG_PALETTE_CLASSES`) 적용
   - 최대 10개 제한, 초과 시 입력 비활성화
-  - 중복 태그 방지
-  - canonical 저장 전 UI 표시값 정규화(`#` 표시, 공백 제거) 반영
-- [ ] `hooks/useTagAutocomplete.ts`: debounce + React Query 자동완성 훅
+  - 중복 태그 방지, 입력값 정규화(`#` 제거, 특수문자 제거)
+  - `id`/`name` prop 지원 (접근성 label 연결)
 
 **페이지 구현 (CSR — 인증 필요)**
-- [ ] **일기 작성 페이지** (`src/app/(auth)/diary/write/page.tsx`):
-  - 제목 입력 (필수)
-  - 본문 입력 (textarea, 자동 높이 조절)
-  - 감정 선택 (1~5 이모지 선택 UI)
+- [x] **일기 작성 페이지** (`src/app/(auth)/diary/write/page.tsx`):
+  - 제목 입력 (필수), 본문 입력 (textarea, 글자 수 카운트)
+  - 감정 선택 (1~5 이모지, `role="radiogroup"` 접근성)
   - `TagInput` 컴포넌트로 태그 추가
-  - 저장 버튼 → 성공 시 "이런 이야기도 있어요" 추천 피드 섹션 표시
-- [ ] **일기 목록 페이지** (`src/app/(auth)/diary/page.tsx`):
-  - 캘린더 뷰 / 리스트 뷰 전환
-  - 날짜 필터 (date picker)
-  - 태그 필터 (태그 칩 클릭으로 필터링)
-  - 무한 스크롤 (Cursor 페이지네이션)
+  - 폼 label-input 접근성 연결 (`htmlFor`/`id`)
+  - 저장 버튼 → 성공 시 상세 페이지로 replace 이동
+  - 추천 피드 섹션: ❌ 추천 API 미구현 — 추후 연동
+- [x] **일기 목록 페이지** (`src/app/(auth)/diary/page.tsx`):
+  - 달력 뷰 (date-fns 캘린더 그리드, 날짜별 기분 이모지 표시)
+  - 달력 날짜 클릭: 일기 있으면 상세 표시/이동, 없으면 빈 상태 안내 + "일기 쓰러 가기"
+  - 연·월 선택기 — **월별 조회 API 기반**
+  - 평균 기분 점수 표시
+  - 반응형 2-모드 UX:
+    - **데스크톱** (`lg:`): 달력 좌측(340px 고정) + 우측 패널(`DiaryPanel`로 인라인 상세 보기/수정/삭제, 라우트 이동 없음)
+    - **모바일**: 달력 상단 + 일기 카드 목록 하단 (클릭 시 라우트 이동)
+  - `useIsDesktop()` 훅으로 JS 레벨 반응형 분기 (`matchMedia 1024px`)
+  - 데스크톱 넓은 폭: `(auth)/layout.tsx`에서 일기 라우트 `max-w-6xl` 적용
   - 일기 카드: 제목, 본문 미리보기 (2줄), 태그 칩 목록, 감정 이모지, 작성일
-- [ ] **일기 상세 페이지** (`src/app/(auth)/diary/[id]/page.tsx`):
-  - 제목, 본문 전체, 태그, 감정, 작성일
-  - 수정/삭제 버튼
-  - "이런 이야기도 있어요" 추천 피드 섹션 (하단)
-- [ ] **일기 수정 페이지** (`src/app/(auth)/diary/[id]/edit/page.tsx`):
-  - 기존 일기 데이터 프리필
+- [x] **일기 데스크톱 패널** (`components/diary/DiaryPanel.tsx`):
+  - 데스크톱 우측 패널에서 라우트 이동 없이 인라인 상세 보기/수정/삭제
+  - 보기 모드: 제목, 날짜, 기분, 본문, 태그 표시 + ⋯ 메뉴 (수정/삭제)
+  - 수정 모드: react-hook-form + zod 폼, 저장/취소 버튼
+  - 삭제: 인라인 확인 UI, 삭제 성공 시 `onClose` 호출로 패널 닫기
+  - `useUpdateDiary`/`useDeleteDiary` 호출 시 `onSuccess`에서 라우트 이동 대신 로컬 상태 전환
+- [x] **일기 상세 페이지** (`src/app/(auth)/diary/[id]/page.tsx`):
+  - 제목, 본문 전체, 태그 (디자인 토큰 팔레트), 감정, 작성일
+  - 수정/삭제 메뉴 (MoreVertical 드롭다운, 외부 클릭 닫기)
+  - 삭제 확인 모달
+  - 에러 상태 처리 (404, 권한 오류 → "일기를 불러올 수 없어요" + 목록 복귀)
+  - 뒤로가기 → 일기 목록으로 이동 (`router.push(ROUTES.DIARY)`)
+  - 추천 피드 섹션: ❌ 추천 API 미구현, 추후 연동
+- [x] **일기 수정 페이지** (`src/app/(auth)/diary/[id]/edit/page.tsx`):
+  - 기존 일기 데이터 프리필 (`useEffect` + `reset`)
   - 태그 추가/제거 가능
-  - 저장 시 `updateDiary` 호출
-- [ ] **일기 카드 컴포넌트** (`components/diary/DiaryCard.tsx`): 리스트 뷰에서 사용
-- [ ] **추천 피드 섹션 컴포넌트** (`components/diary/RecommendedFeeds.tsx`):
+  - 폼 label-input 접근성 연결
+  - 에러 상태 처리
+  - 저장 시 `updateDiary` 호출 → replace로 상세 이동
+- [x] **일기 카드 컴포넌트** (`components/diary/DiaryCard.tsx`): 리스트 뷰에서 사용, 디자인 토큰 팔레트 적용
+- [ ] **추천 피드 섹션 컴포넌트** (`components/diary/RecommendedFeeds.tsx`): — ❌ 백엔드 미구현, 추후 연동
   - 일기 저장 완료 후 노출
   - 최대 10개 게시글 카드 (제목, 태그, 작성자 닉네임)
   - 일치 태그 하이라이팅 (색상 강조)
   - 카드 클릭 시 피드 상세로 이동
   - 태그 일치 수 우선 정렬 결과를 UI에 그대로 반영
 
+**공통 개선 (코드 리뷰 반영)**
+- [x] 상수 중복 제거: `MOOD_EMOJIS`/`MOOD_LABELS` → `constants/diary.ts`, `TAG_PALETTE_CLASSES`/`TAG_SUGGESTIONS` → `constants/tag.ts`
+- [x] 태그 칩 색상: 하드코딩 Tailwind 클래스 → 디자인 시스템 `--color-tag-palette-*` 토큰 기반 클래스로 통일
+- [x] 다크모드 배경 문제 해결: `color-scheme: light only !important` 강제 (Tailwind v4 preflight 대응)
+- [x] 테스트: API(7) + 훅(12) + 컴포넌트(23) = 총 82개 테스트 작성 및 통과
+- [x] QA 문서: `.qa/diary-qa.md` (75개 시나리오)
+
 ### 5주차 — 태그 자동완성 + 검색 (Tag + Search 도메인)
+
+> **백엔드 API 현황 (2026-03-31 기준)**
+>
+> | 엔드포인트 | 백엔드 상태 | 비고 |
+> |---|---|---|
+> | `GET /api/v1/tags/autocomplete?q=` | **구현 완료** | 응답: `[{ tagId, displayName, canonical }]`. 빈 문자열/공백 → 400 |
+> | `GET /api/v1/tags/{id}/related` | **구현 완료** | 응답: `[{ tagId, displayName, canonical, coOccurrenceCount }]`. 존재하지 않는 태그 → 404 (TAG_001) |
+> | `GET /api/v1/tags/trending` | **미구현** | 백엔드 배치 Job + Redis 캐시 필요 |
+> | `GET /api/v1/tags/daily-prompt` | **미구현** | |
+> | `GET /api/v1/search` | **미구현** | 백엔드 6주차 Search 도메인 |
+> | `GET /api/v1/search/autocomplete` | **미구현** | 백엔드 6주차 Search 도메인 |
+>
+> **`types/tag.ts` 동기화 필요 사항:**
+> - `TagSuggestion`: `usageCount` 필드 제거, `displayName`/`canonical` 필드 추가 (백엔드 응답과 불일치)
+> - `TagSuggestion.id`: 백엔드는 `tagId: number` — `string`에서 `number`로 변경 검토
 
 **API + 훅**
 - [ ] `api/tag.ts` 작성:
-  - `autocomplete(query)` → GET `/api/v1/tags/autocomplete?q=`
-  - `getRelatedTags(tagId)` → GET `/api/v1/tags/{id}/related`
-  - `getTrending()` → GET `/api/v1/tags/trending`
-  - `getDailyPrompt()` → GET `/api/v1/tags/daily-prompt`
+  - `autocomplete(query)` → GET `/api/v1/tags/autocomplete?q=` — ✅ 백엔드 구현 완료
+  - `getRelatedTags(tagId)` → GET `/api/v1/tags/{id}/related` — ✅ 백엔드 구현 완료
+  - `getTrending()` → GET `/api/v1/tags/trending` — ❌ 백엔드 미구현
+  - `getDailyPrompt()` → GET `/api/v1/tags/daily-prompt` — ❌ 백엔드 미구현
 - [ ] `api/search.ts` 작성:
-  - `search(params)` → GET `/api/v1/search` (q, type, from, to, tags)
-  - `searchAutocomplete(query)` → GET `/api/v1/search/autocomplete?q=`
+  - `search(params)` → GET `/api/v1/search` (q, type, from, to, tags) — ❌ 백엔드 미구현
+  - `searchAutocomplete(query)` → GET `/api/v1/search/autocomplete?q=` — ❌ 백엔드 미구현
 - [ ] `hooks/useSearch.ts` 작성:
   - `useSearch(params)` — infinite query
   - `useSearchAutocomplete(query)` — query (debounce 300ms)

@@ -30,19 +30,15 @@ export interface TagValue {
 // 태그 자동완성
 // ---------------------------------------------------------------------------
 
-export interface TagAutoCompleteResponse {
-  tags: TagSuggestion[];
-}
-
 /**
  * 자동완성 제안 태그.
- * usageCount는 입력창에서 인기 태그를 시각적으로 구분하는 데 사용할 수 있다.
+ * 백엔드 GET /api/v1/tags/autocomplete?q= 응답과 동기화.
  * staleTime은 서버 캐시 TTL(10분)과 동기화한다.
  */
 export interface TagSuggestion {
-  id: string;
-  name: string;      // canonical 형식
-  usageCount: number;
+  tagId: number;
+  displayName: string;
+  canonical: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -73,6 +69,17 @@ export interface TrendingTag {
 export interface RelatedTag {
   id: string;
   name: string;
+  coOccurrenceCount: number;
+}
+
+/**
+ * 연관 태그 API 응답.
+ * 백엔드 GET /api/v1/tags/{id}/related 응답과 동기화.
+ */
+export interface RelatedTagResponse {
+  tagId: number;
+  displayName: string;
+  canonical: string;
   coOccurrenceCount: number;
 }
 
