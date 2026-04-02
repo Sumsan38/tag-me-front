@@ -17,7 +17,9 @@ import { TAG_PALETTE_CLASSES } from '@/constants/tag';
 export default function DiaryDetailPage() {
   const router = useRouter();
   const params = useParams();
-  const diaryId = params.id ? Number(params.id) : null;
+  const rawId = params.id ? Number(params.id) : null;
+  const diaryId = rawId !== null && Number.isFinite(rawId) ? rawId : null;
+  const isInvalidId = params.id != null && diaryId === null;
 
   const { data: diary, isLoading, isError } = useDiary(diaryId);
   const deleteDiary = useDeleteDiary();
@@ -48,8 +50,8 @@ export default function DiaryDetailPage() {
     }
   }
 
-  // ---- 에러 ----
-  if (isError) {
+  // ---- 잘못된 ID 또는 에러 ----
+  if (isInvalidId || isError) {
     return (
       <div className="min-h-screen bg-gray-50">
         <header className="bg-white px-5 py-4 border-b border-gray-100">

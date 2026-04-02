@@ -99,12 +99,12 @@ describe('useDiary hooks', () => {
     });
 
     it('monthly 키에 year, month를 포함한다', () => {
-      expect(diaryKeys.monthly(2026, 4)).toEqual(['diary', 'monthly', 2026, 4]);
+      expect(diaryKeys.monthly(2026, 4)).toEqual(['diary', 'monthly', 2026, 4, []]);
     });
 
     it('monthly 키에 tagIds를 포함한다', () => {
       expect(diaryKeys.monthly(2026, 4, [1, 2])).toEqual([
-        'diary', 'monthly', 2026, 4, 1, 2,
+        'diary', 'monthly', 2026, 4, [1, 2],
       ]);
     });
 

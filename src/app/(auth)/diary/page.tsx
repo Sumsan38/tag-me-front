@@ -55,7 +55,7 @@ export default function DiaryListPage() {
   const monthPickerRef = useRef<HTMLDivElement>(null);
   const yearListRef = useRef<HTMLDivElement>(null);
 
-  const { data, isLoading } = useMonthlyDiaries(year, month);
+  const { data, isLoading, isError, refetch } = useMonthlyDiaries(year, month);
 
   // ---- 드롭다운 외부 클릭 시 닫기 ----
   useEffect(() => {
@@ -171,8 +171,9 @@ export default function DiaryListPage() {
     [],
   );
 
-  // ---- 패널 닫기 ----
+  // ---- 패널 닫기 (auto-select 억제) ----
   const handlePanelClose = useCallback(() => {
+    suppressAutoSelect.current = true;
     setPanel(null);
   }, []);
 
@@ -398,6 +399,20 @@ export default function DiaryListPage() {
                 );
               })}
             </div>
+
+            {/* 에러 상태 */}
+            {isError && (
+              <div className="mt-3 flex flex-col items-center gap-1.5 py-4 text-center">
+                <p className="text-xs text-red-400">일기를 불러오지 못했어요</p>
+                <button
+                  type="button"
+                  onClick={() => refetch()}
+                  className="text-xs font-medium text-indigo-500 hover:text-indigo-600"
+                >
+                  다시 시도
+                </button>
+              </div>
+            )}
 
             {/* 감정 범례 */}
             <div className="mt-3 pt-3 border-t border-gray-50" role="note" aria-label="감정 범례">

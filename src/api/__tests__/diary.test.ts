@@ -72,6 +72,7 @@ describe('api/diary', () => {
         title: '오늘의 일기',
         content: '내용입니다',
         mood: 3,
+        diaryDate: '2025-01-15',
         tagNames: ['산책', '감정'],
       };
       mockPost.mockResolvedValueOnce({ data: { diaryId: 42 } });
@@ -87,6 +88,7 @@ describe('api/diary', () => {
         title: '제목',
         content: '내용',
         mood: 2,
+        diaryDate: '2025-01-15',
       };
       mockPost.mockResolvedValueOnce({ data: { diaryId: 1 } });
 
@@ -172,6 +174,7 @@ describe('api/diary', () => {
         title: '수정된 제목',
         content: '수정된 내용',
         mood: 5,
+        diaryDate: '2025-01-15',
         tagNames: ['여행'],
       };
       mockPut.mockResolvedValueOnce({ data: undefined });
