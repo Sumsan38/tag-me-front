@@ -3,24 +3,11 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-
 import TagInput from '@/components/tag/TagInput';
 import { useCreateDiary } from '@/hooks/useDiary';
-import { MOOD_EMOJIS, MOOD_LABELS } from '@/constants/diary';
+import { MOOD_EMOJIS, MOOD_LABELS, diarySchema } from '@/constants/diary';
+import type { DiaryFormValues } from '@/constants/diary';
 import { TAG_SUGGESTIONS } from '@/constants/tag';
-
-// ---------------------------------------------------------------------------
-// zod 스키마
-// ---------------------------------------------------------------------------
-
-const diarySchema = z.object({
-  title: z.string().min(1, '제목을 입력해주세요.').max(255),
-  content: z.string().min(1, '내용을 입력해주세요.').max(10000),
-  mood: z.number().min(1, '기분을 선택해주세요.').max(5),
-});
-
-type DiaryFormValues = z.infer<typeof diarySchema>;
 
 // ---------------------------------------------------------------------------
 // Props
@@ -143,6 +130,9 @@ export default function DiaryCreatePanel({ defaultDate, onCreated, onCancel }: D
                 <button
                   key={moodValue}
                   type="button"
+                  role="radio"
+                  aria-checked={isSelected}
+                  aria-label={`${MOOD_LABELS[idx]} ${emoji}`}
                   onClick={() => setValue('mood', moodValue, { shouldValidate: true })}
                   className={`flex flex-1 flex-col items-center gap-1 rounded-xl border-2 py-2.5 transition-colors ${
                     isSelected
@@ -176,7 +166,7 @@ export default function DiaryCreatePanel({ defaultDate, onCreated, onCancel }: D
               placeholder="오늘 하루를 기록해보세요"
             />
             <span className="absolute bottom-3 right-4 text-[11px] text-gray-300">
-              {contentValue?.length ?? 0} / 10,000
+              {contentValue.length} / 10,000
             </span>
           </div>
           {errors.content && <p className="mt-1 text-xs text-red-500">{errors.content.message}</p>}
@@ -188,7 +178,7 @@ export default function DiaryCreatePanel({ defaultDate, onCreated, onCancel }: D
             태그
           </label>
           <div className="mt-1.5">
-            <TagInput id="create-panel-tags" tags={tags} onChange={setTags} suggestions={[...TAG_SUGGESTIONS]} />
+            <TagInput id="create-panel-tags" tags={tags} onChange={setTags} suggestions={TAG_SUGGESTIONS} />
           </div>
         </div>
       </form>

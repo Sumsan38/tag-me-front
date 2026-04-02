@@ -20,7 +20,7 @@ interface TagInputProps {
   onChange: (tags: string[]) => void;
   maxTags?: number;
   placeholder?: string;
-  suggestions?: string[];
+  suggestions?: readonly string[];
   id?: string;
 }
 

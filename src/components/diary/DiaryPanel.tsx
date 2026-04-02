@@ -1,29 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import { format, parseISO } from 'date-fns';
 import { Pencil, Trash2 } from 'lucide-react';
-import { useQueryClient } from '@tanstack/react-query';
-
-import { useDiary, useUpdateDiary, useDeleteDiary, diaryKeys } from '@/hooks/useDiary';
+import { useDiary, useUpdateDiary, useDeleteDiary } from '@/hooks/useDiary';
 import TagInput from '@/components/tag/TagInput';
-import { MOOD_EMOJIS, MOOD_LABELS } from '@/constants/diary';
+import { MOOD_EMOJIS, MOOD_LABELS, MOOD_DEFAULT_INDEX, diarySchema } from '@/constants/diary';
+import type { DiaryFormValues } from '@/constants/diary';
 import { TAG_PALETTE_CLASSES, TAG_SUGGESTIONS } from '@/constants/tag';
-
-// ---------------------------------------------------------------------------
-// zod 스키마
-// ---------------------------------------------------------------------------
-
-const diarySchema = z.object({
-  title: z.string().min(1, '제목을 입력해주세요.').max(255),
-  content: z.string().min(1, '내용을 입력해주세요.').max(10000),
-  mood: z.number().min(1, '기분을 선택해주세요.').max(5),
-});
-
-type DiaryFormValues = z.infer<typeof diarySchema>;
 
 // ---------------------------------------------------------------------------
 // Props
@@ -33,23 +19,27 @@ type PanelMode = 'view' | 'edit';
 
 interface DiaryPanelProps {
   diaryId: number;
-  /** 삭제/수정 성공 시 패널 초기화 콜백 */
+  /** 패널 초기화 콜백 */
   onClose: () => void;
+  /** 삭제 성공 시 콜백 (auto-select 억제용) */
+  onDeleted?: () => void;
 }
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
-export default function DiaryPanel({ diaryId, onClose }: DiaryPanelProps) {
+export default function DiaryPanel({ diaryId, onClose, onDeleted }: DiaryPanelProps) {
   const { data: diary, isLoading, isError } = useDiary(diaryId);
   const updateDiary = useUpdateDiary();
   const deleteDiary = useDeleteDiary();
-  const queryClient = useQueryClient();
 
   const [mode, setMode] = useState<PanelMode>('view');
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [tags, setTags] = useState<string[]>([]);
+  const [expanded, setExpanded] = useState(false);
+  const [isClamped, setIsClamped] = useState(false);
+  const contentRef = useRef<HTMLParagraphElement>(null);
 
   const {
     register,
@@ -67,7 +57,24 @@ export default function DiaryPanel({ diaryId, onClose }: DiaryPanelProps) {
   useEffect(() => {
     setMode('view');
     setDeleteConfirm(false);
+    setExpanded(false);
   }, [diaryId]);
+
+  // 본문이 6줄 이상인지 감지 (line-clamp-6 적용 시 overflow 여부)
+  const checkClamped = useCallback(() => {
+    const el = contentRef.current;
+    if (el) {
+      setIsClamped(el.scrollHeight > el.clientHeight);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (mode === 'view' && diary && !expanded) {
+      // 렌더 후 높이 비교를 위해 프레임 대기
+      const rafId = requestAnimationFrame(checkClamped);
+      return () => cancelAnimationFrame(rafId);
+    }
+  }, [mode, diary, expanded, checkClamped]);
 
   // 수정 모드 진입 시 폼 초기화
   useEffect(() => {
@@ -82,6 +89,7 @@ export default function DiaryPanel({ diaryId, onClose }: DiaryPanelProps) {
 
   // ---- 수정 저장 ----
   function onSubmitEdit(data: DiaryFormValues) {
+    if (!diary) return;
     updateDiary.mutate(
       {
         id: diaryId,
@@ -89,16 +97,13 @@ export default function DiaryPanel({ diaryId, onClose }: DiaryPanelProps) {
           title: data.title,
           content: data.content,
           mood: data.mood,
-          diaryDate: diary!.date,
+          diaryDate: diary.date,
           tagNames: tags.length > 0 ? tags : undefined,
         },
       },
       {
         onSuccess: () => {
           setMode('view');
-          // 패널 내에서 처리하므로 라우트 이동 안 함 — 캐시만 갱신
-          queryClient.invalidateQueries({ queryKey: diaryKeys.detail(diaryId) });
-          queryClient.invalidateQueries({ queryKey: diaryKeys.all });
         },
       },
     );
@@ -108,9 +113,7 @@ export default function DiaryPanel({ diaryId, onClose }: DiaryPanelProps) {
   function handleDelete() {
     deleteDiary.mutate(diaryId, {
       onSuccess: () => {
-        queryClient.removeQueries({ queryKey: diaryKeys.detail(diaryId) });
-        queryClient.invalidateQueries({ queryKey: diaryKeys.all });
-        onClose();
+        (onDeleted ?? onClose)();
       },
     });
   }
@@ -202,6 +205,9 @@ export default function DiaryPanel({ diaryId, onClose }: DiaryPanelProps) {
                   <button
                     key={moodValue}
                     type="button"
+                    role="radio"
+                    aria-checked={isSelected}
+                    aria-label={`${MOOD_LABELS[idx]} ${emoji}`}
                     onClick={() => setValue('mood', moodValue, { shouldValidate: true })}
                     className={`flex flex-1 flex-col items-center gap-1 rounded-xl border-2 py-2.5 transition-colors ${
                       isSelected
@@ -235,7 +241,7 @@ export default function DiaryPanel({ diaryId, onClose }: DiaryPanelProps) {
                 placeholder="오늘 하루를 기록해보세요"
               />
               <span className="absolute bottom-3 right-4 text-[11px] text-gray-300">
-                {contentValue?.length ?? 0} / 10,000
+                {contentValue.length} / 10,000
               </span>
             </div>
             {errors.content && <p className="mt-1 text-xs text-red-500">{errors.content.message}</p>}
@@ -247,7 +253,7 @@ export default function DiaryPanel({ diaryId, onClose }: DiaryPanelProps) {
               태그
             </label>
             <div className="mt-1.5">
-              <TagInput id="panel-tags" tags={tags} onChange={setTags} suggestions={[...TAG_SUGGESTIONS]} />
+              <TagInput id="panel-tags" tags={tags} onChange={setTags} suggestions={TAG_SUGGESTIONS} />
             </div>
           </div>
         </form>
@@ -258,8 +264,8 @@ export default function DiaryPanel({ diaryId, onClose }: DiaryPanelProps) {
   // =====================================================================
   // 조회 모드
   // =====================================================================
-  const moodEmoji = MOOD_EMOJIS[(diary.mood || 1) - 1] ?? MOOD_EMOJIS[2];
-  const moodLabel = MOOD_LABELS[(diary.mood || 1) - 1] ?? MOOD_LABELS[2];
+  const moodEmoji = MOOD_EMOJIS[(diary.mood || 1) - 1] ?? MOOD_EMOJIS[MOOD_DEFAULT_INDEX];
+  const moodLabel = MOOD_LABELS[(diary.mood || 1) - 1] ?? MOOD_LABELS[MOOD_DEFAULT_INDEX];
 
   return (
     <div className="rounded-xl border border-gray-100 bg-white">
@@ -300,9 +306,24 @@ export default function DiaryPanel({ diaryId, onClose }: DiaryPanelProps) {
         <h2 className="text-lg font-bold text-gray-900">{diary.title}</h2>
 
         <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
-          <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-700">
+          <p
+            ref={contentRef}
+            className={`whitespace-pre-wrap text-sm leading-relaxed text-gray-700${
+              !expanded ? ' line-clamp-6' : ''
+            }`}
+          >
             {diary.content}
           </p>
+          {(isClamped || expanded) && (
+            <button
+              type="button"
+              onClick={() => setExpanded((prev) => !prev)}
+              aria-expanded={expanded}
+              className="mt-2 text-sm font-medium text-indigo-500 hover:text-indigo-600 transition-colors"
+            >
+              {expanded ? '접기' : '더보기'}
+            </button>
+          )}
         </div>
 
         {diary.tags.length > 0 && (
@@ -320,11 +341,13 @@ export default function DiaryPanel({ diaryId, onClose }: DiaryPanelProps) {
             })}
           </div>
         )}
+
+        {/* TODO: 비슷한 태그 기반 피드 추천 섹션 — 백엔드 API 구현 후 연동 */}
       </div>
 
       {/* 삭제 확인 */}
       {deleteConfirm && (
-        <div className="border-t border-gray-100 p-5">
+        <div role="alertdialog" aria-label="일기 삭제 확인" className="border-t border-gray-100 p-5">
           <p className="text-sm font-semibold text-gray-900">이 일기를 삭제할까요?</p>
           <p className="mt-1 text-xs text-gray-400">삭제된 일기는 복구할 수 없습니다.</p>
           <div className="mt-3 flex gap-2">

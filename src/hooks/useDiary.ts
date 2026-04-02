@@ -27,7 +27,7 @@ import type {
 export const diaryKeys = {
   all: ['diary'] as const,
   monthly: (year: number, month: number, tagIds?: number[]) =>
-    [...diaryKeys.all, 'monthly', year, month, ...(tagIds ?? [])] as const,
+    [...diaryKeys.all, 'monthly', year, month, tagIds ?? []] as const,
   detail: (id: number) => [...diaryKeys.all, 'detail', id] as const,
 };
 
@@ -110,7 +110,7 @@ export function useUpdateDiary() {
       diaryApi.updateDiary(id, data),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: diaryKeys.detail(variables.id) });
-      queryClient.invalidateQueries({ queryKey: diaryKeys.all });
+      queryClient.invalidateQueries({ queryKey: [...diaryKeys.all, 'monthly'] });
       toast.success('일기가 수정되었습니다.');
     },
     onError: (error) => {
@@ -135,7 +135,9 @@ export function useDeleteDiary() {
     mutationFn: (id: number) => diaryApi.deleteDiary(id),
     onSuccess: (_, deletedId) => {
       queryClient.removeQueries({ queryKey: diaryKeys.detail(deletedId) });
-      queryClient.invalidateQueries({ queryKey: diaryKeys.all });
+      queryClient.invalidateQueries({
+        queryKey: [...diaryKeys.all, 'monthly'],
+      });
       toast.success('일기가 삭제되었습니다.');
     },
     onError: (error) => {
