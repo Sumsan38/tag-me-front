@@ -1,3 +1,5 @@
+import { TAG_PALETTE_CLASSES } from '@/constants/tag';
+
 export interface BadgeProps {
   variant?: 'tag' | 'notification' | 'status';
   /** tag variant: 태그 레이블 (#prefix 자동 추가) */
@@ -15,15 +17,6 @@ export interface BadgeProps {
   className?: string;
 }
 
-// idx % 6 팔레트 (globals.css 토큰 기반)
-const tagPaletteClasses = [
-  { fg: 'text-tag-palette-0-fg', bg: 'bg-tag-palette-0-bg' },
-  { fg: 'text-tag-palette-1-fg', bg: 'bg-tag-palette-1-bg' },
-  { fg: 'text-tag-palette-2-fg', bg: 'bg-tag-palette-2-bg' },
-  { fg: 'text-tag-palette-3-fg', bg: 'bg-tag-palette-3-bg' },
-  { fg: 'text-tag-palette-4-fg', bg: 'bg-tag-palette-4-bg' },
-  { fg: 'text-tag-palette-5-fg', bg: 'bg-tag-palette-5-bg' },
-] as const;
 
 const statusColorMap = {
   success: 'bg-success-bg text-success border border-success-border',
@@ -44,7 +37,7 @@ export default function Badge({
 }: BadgeProps) {
   // ── tag variant ──────────────────────────────────────────
   if (variant === 'tag') {
-    const { fg, bg } = tagPaletteClasses[idx % 6];
+    const { fg, bg } = TAG_PALETTE_CLASSES[idx % 6];
     return (
       <span
         role="listitem"

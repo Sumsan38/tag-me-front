@@ -10,16 +10,15 @@
  */
 
 :root {
+  color-scheme: light only;
   --background: #FAFAF8;
   --foreground: #1A1A18;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+/*
+ * 다크 모드 비활성화 — Tag-Me는 라이트 모드 전용 디자인.
+ * 추후 다크 모드 지원 시 디자인 토큰 전체를 재정의하여 활성화한다.
+ */
 
 @theme {
   /* ----------------------------------------------------------
@@ -207,6 +206,12 @@
 /* ============================================================
    글로벌 베이스 스타일
    ============================================================ */
+/* Tailwind v4 preflight가 html에 color-scheme: light dark를 주입하므로
+   OS 다크모드에서 브라우저가 기본 배경을 검게 렌더링하는 문제를 방지한다. */
+html {
+  color-scheme: light only !important;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);

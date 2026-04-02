@@ -46,5 +46,10 @@ export default function AuthGroupLayout({
     return null;
   }
 
-  return <MainLayout>{children}</MainLayout>;
+  const isDiaryRoute = pathname.startsWith('/diary');
+  return (
+    <MainLayout contentMaxWidth={isDiaryRoute ? 'max-w-6xl' : undefined}>
+      {children}
+    </MainLayout>
+  );
 }

@@ -26,7 +26,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko">
+    <html lang="ko" data-theme="light" style={{ colorScheme: 'light' }}>
       <body className={`${notoSansKR.variable} antialiased`}>
         <QueryProvider>
           <ToastProvider>
