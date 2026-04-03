@@ -182,17 +182,142 @@ function HomeScreen() {
   );
 }
 
-// ── SCREEN 2: 일기 작성 ────────────────────────────────────
+// ── 일기 공통 상수 ────────────────────────────────────────
+const moods = ["😤", "😔", "😐", "😌", "😊"];
+const moodLabels = ["힘들다", "우울해", "보통", "편안해", "좋아!"];
+const diaryMockData = [
+  { id: 1, title: "2026-03-31", date: "2026. 03. 31  MON", content: "오늘 한강을 걸었다. 이어폰 없이 걸었더니 생각이 정리됐다. 침묵이 가끔은 제일 좋은 것 같다.", mood: 3, tags: ["한강", "산책", "혼자"], tIdx: [0, 3, 2] },
+  { id: 2, title: "2026-03-30", date: "2026. 03. 30  SUN", content: "카페에서 책을 읽었다. 시간 가는 줄 몰랐다. 이런 여유가 필요했나보다.", mood: 4, tags: ["카페", "독서", "여유"], tIdx: [5, 3, 1] },
+  { id: 3, title: "2026-03-28", date: "2026. 03. 28  FRI", content: "회사에서 힘든 하루. 야근 끝에 겨우 집에 왔다. 번아웃이 올 것 같다.", mood: 1, tags: ["번아웃", "야근"], tIdx: [0, 4] },
+  { id: 4, title: "2026-03-25", date: "2026. 03. 25  TUE", content: "오랜만에 친구를 만났다. 수다가 이렇게 좋은 거였나.", mood: 4, tags: ["친구", "수다", "감사"], tIdx: [2, 1, 3] },
+];
+
+function todayStr() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${dd}`;
+}
+
+// ── SCREEN 2: 일기 (라우터) ───────────────────────────────
 function DiaryScreen() {
-  const [content, setContent] = useState("오늘 한강을 걸었다. 이어폰 없이 걸었더니 생각이 정리됐다. 침묵이 가끔은 제일 좋은 것 같다.");
-  const [tags, setTags] = useState(["한강", "산책", "혼자"]);
+  const [view, setView] = useState("list"); // list | write | detail | edit
+  const [selectedDiary, setSelectedDiary] = useState(null);
+
+  if (view === "write") return <DiaryWriteScreen onBack={() => setView("list")} />;
+  if (view === "detail") return (
+    <DiaryDetailScreen
+      diary={selectedDiary}
+      onBack={() => setView("list")}
+      onEdit={() => setView("edit")}
+    />
+  );
+  if (view === "edit") return (
+    <DiaryEditScreen
+      diary={selectedDiary}
+      onBack={() => setView("detail")}
+    />
+  );
+  return (
+    <DiaryListScreen
+      onWrite={() => setView("write")}
+      onSelect={(d) => { setSelectedDiary(d); setView("detail"); }}
+    />
+  );
+}
+
+// ── 일기 목록 ─────────────────────────────────────────────
+function DiaryListScreen({ onWrite, onSelect }) {
+  const [year] = useState(2026);
+  const [month] = useState(3);
+  const avgMood = diaryMockData.reduce((s, d) => s + d.mood, 0) / diaryMockData.length;
+
+  return (
+    <div style={{ background: T.bg, minHeight: "100%", fontFamily: font, position: "relative" }}>
+      {/* Header */}
+      <div style={{ background: T.surface, padding: "16px 20px 14px",
+        borderBottom: `1px solid ${T.border}` }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <span style={{ fontSize: 17, fontWeight: 700, color: T.text, letterSpacing: "-0.03em" }}>일기</span>
+          {/* Average mood badge */}
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontSize: 16 }}>{moods[Math.round(avgMood) - 1]}</span>
+            <span style={{ fontSize: 11, color: T.muted }}>평균 기분</span>
+          </div>
+        </div>
+
+        {/* Month selector */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 20 }}>
+          <button style={{ background: "none", border: "none", cursor: "pointer",
+            color: T.muted, fontSize: 16, padding: "4px 8px", fontFamily: font }}>‹</button>
+          <span style={{ fontSize: 14, fontWeight: 600, color: T.text,
+            letterSpacing: "-0.02em" }}>{year}년 {month}월</span>
+          <button style={{ background: "none", border: "none", cursor: "pointer",
+            color: T.muted, fontSize: 16, padding: "4px 8px", fontFamily: font }}>›</button>
+        </div>
+      </div>
+
+      {/* Diary cards */}
+      <div style={{ padding: "12px 16px 80px" }}>
+        {diaryMockData.map((d, i) => (
+          <div key={d.id} onClick={() => onSelect(d)}
+            style={{
+              background: T.surface, borderRadius: 14,
+              border: `1px solid ${T.border}`, padding: "14px 16px",
+              marginBottom: i < diaryMockData.length - 1 ? 10 : 0,
+              cursor: "pointer", transition: "border-color 0.15s",
+            }}
+            onMouseEnter={e => e.currentTarget.style.borderColor = T.borderHover}
+            onMouseLeave={e => e.currentTarget.style.borderColor = T.border}
+          >
+            {/* Top row: date + mood */}
+            <div style={{ display: "flex", justifyContent: "space-between",
+              alignItems: "center", marginBottom: 8 }}>
+              <span style={{ color: T.muted, fontSize: 11 }}>{d.date}</span>
+              <span style={{ fontSize: 16 }}>{moods[d.mood - 1]}</span>
+            </div>
+            {/* Title */}
+            <div style={{ color: T.text, fontSize: 14, fontWeight: 600,
+              letterSpacing: "-0.02em", marginBottom: 6 }}>{d.title}</div>
+            {/* Content preview */}
+            <div style={{ color: T.sub, fontSize: 13, lineHeight: 1.6,
+              marginBottom: 10, display: "-webkit-box", WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical", overflow: "hidden" }}>{d.content}</div>
+            {/* Tags */}
+            <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+              {d.tags.map((t, j) => <Tag key={t} label={t} idx={d.tIdx[j]} sm />)}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Floating write button */}
+      <div style={{ position: "sticky", bottom: 16, display: "flex", justifyContent: "flex-end",
+        padding: "0 16px", pointerEvents: "none" }}>
+        <button onClick={onWrite} style={{
+          width: 48, height: 48, borderRadius: 14,
+          background: T.text, color: "#fff", border: "none",
+          fontSize: 22, fontWeight: 300, cursor: "pointer",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          boxShadow: "0 4px 16px rgba(26,26,24,0.18)",
+          pointerEvents: "auto",
+        }}>+</button>
+      </div>
+    </div>
+  );
+}
+
+// ── 일기 작성 ─────────────────────────────────────────────
+function DiaryWriteScreen({ onBack }) {
+  const [title, setTitle] = useState(todayStr());
+  const [content, setContent] = useState("");
+  const [tags, setTags] = useState([]);
   const [input, setInput] = useState("");
-  const [mood, setMood] = useState(1);
-  const moods = ["😤", "😔", "😐", "😌", "😊"];
-  const moodLabels = ["힘들다", "우울해", "보통", "편안해", "좋아!"];
+  const [mood, setMood] = useState(2);
   const suggests = ["일상", "감정", "성장", "여행"];
 
-  const addTag = (t) => { if (t.trim() && !tags.includes(t.trim())) setTags([...tags, t.trim()]); setInput(""); };
+  const addTag = (t) => { if (t.trim() && !tags.includes(t.trim()) && tags.length < 10) setTags([...tags, t.trim()]); setInput(""); };
   const removeTag = (t) => setTags(tags.filter(x => x !== t));
 
   return (
@@ -201,10 +326,14 @@ function DiaryScreen() {
       <div style={{ background: T.surface, padding: "16px 20px",
         borderBottom: `1px solid ${T.border}`,
         display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div>
-          <div style={{ color: T.muted, fontSize: 11 }}>2026. 03. 09  MON</div>
-          <div style={{ color: T.text, fontSize: 17, fontWeight: 700,
-            letterSpacing: "-0.03em", marginTop: 2 }}>오늘의 일기</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <button onClick={onBack} style={{
+            background: "none", border: "none", cursor: "pointer",
+            fontSize: 18, color: T.text, padding: 0, lineHeight: 1,
+            display: "flex", alignItems: "center",
+          }}>←</button>
+          <span style={{ color: T.text, fontSize: 17, fontWeight: 700,
+            letterSpacing: "-0.03em" }}>오늘의 일기</span>
         </div>
         <button style={{ background: T.text, color: "#fff", border: "none",
           borderRadius: 10, padding: "8px 18px", fontSize: 13, fontWeight: 600,
@@ -212,6 +341,19 @@ function DiaryScreen() {
       </div>
 
       <div style={{ padding: "16px" }}>
+        {/* Title */}
+        <div style={{ background: T.surface, borderRadius: 14,
+          border: `1px solid ${T.border}`, padding: "14px 16px", marginBottom: 10 }}>
+          <div style={{ color: T.muted, fontSize: 11, fontWeight: 600,
+            letterSpacing: "0.05em", marginBottom: 8 }}>TITLE</div>
+          <input value={title} onChange={e => setTitle(e.target.value)}
+            placeholder="제목을 입력하세요"
+            style={{ width: "100%", border: "none", outline: "none",
+              background: "transparent", color: T.text, fontSize: 15,
+              fontWeight: 600, fontFamily: font, letterSpacing: "-0.02em",
+              boxSizing: "border-box" }} />
+        </div>
+
         {/* Mood */}
         <div style={{ background: T.surface, borderRadius: 14,
           border: `1px solid ${T.border}`, padding: "14px 16px", marginBottom: 10 }}>
@@ -248,32 +390,39 @@ function DiaryScreen() {
         {/* Tags */}
         <div style={{ background: T.surface, borderRadius: 14,
           border: `1px solid ${T.border}`, padding: "14px 16px", marginBottom: 10 }}>
-          <div style={{ color: T.muted, fontSize: 11, fontWeight: 600,
-            letterSpacing: "0.05em", marginBottom: 10 }}>TAGS</div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
-            {tags.map((t, i) => (
-              <span key={t} style={{
-                background: tagPalette[i % tagPalette.length][1],
-                color: tagPalette[i % tagPalette.length][0],
-                fontSize: 12, fontWeight: 500, padding: "3px 8px 3px 10px",
-                borderRadius: 6, display: "flex", alignItems: "center", gap: 5
-              }}>
-                #{t}
-                <span onClick={() => removeTag(t)} style={{
-                  cursor: "pointer", fontSize: 14, lineHeight: 1,
-                  color: tagPalette[i % tagPalette.length][0], opacity: 0.5,
-                  fontWeight: 300
-                }}>×</span>
-              </span>
-            ))}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+            <div style={{ color: T.muted, fontSize: 11, fontWeight: 600,
+              letterSpacing: "0.05em" }}>TAGS</div>
+            <span style={{ color: T.muted, fontSize: 11 }}>{tags.length}/10</span>
           </div>
+          {tags.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+              {tags.map((t, i) => (
+                <span key={t} style={{
+                  background: tagPalette[i % tagPalette.length][1],
+                  color: tagPalette[i % tagPalette.length][0],
+                  fontSize: 12, fontWeight: 500, padding: "3px 8px 3px 10px",
+                  borderRadius: 6, display: "flex", alignItems: "center", gap: 5
+                }}>
+                  #{t}
+                  <span onClick={() => removeTag(t)} style={{
+                    cursor: "pointer", fontSize: 14, lineHeight: 1,
+                    color: tagPalette[i % tagPalette.length][0], opacity: 0.5,
+                    fontWeight: 300
+                  }}>×</span>
+                </span>
+              ))}
+            </div>
+          )}
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <input value={input} onChange={e => setInput(e.target.value)}
               onKeyDown={e => e.key === "Enter" && addTag(input)}
               placeholder="태그 추가 후 Enter"
+              disabled={tags.length >= 10}
               style={{ flex: 1, border: `1px solid ${T.border}`, borderRadius: 8,
                 padding: "7px 12px", fontSize: 13, color: T.text,
-                background: T.bg, outline: "none", fontFamily: font }} />
+                background: T.bg, outline: "none", fontFamily: font,
+                opacity: tags.length >= 10 ? 0.5 : 1 }} />
           </div>
           <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
             {suggests.filter(s => !tags.includes(s)).map(s => (
@@ -303,6 +452,243 @@ function DiaryScreen() {
               </div>
             </div>
           ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── 일기 상세 ─────────────────────────────────────────────
+function DiaryDetailScreen({ diary, onBack, onEdit }) {
+  const [showMenu, setShowMenu] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
+
+  if (!diary) return null;
+
+  return (
+    <div style={{ background: T.bg, minHeight: "100%", fontFamily: font }}>
+      {/* Header */}
+      <div style={{ background: T.surface, padding: "16px 20px",
+        borderBottom: `1px solid ${T.border}`,
+        display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <button onClick={onBack} style={{
+          background: "none", border: "none", cursor: "pointer",
+          fontSize: 18, color: T.text, padding: 0, lineHeight: 1,
+          display: "flex", alignItems: "center",
+        }}>←</button>
+        <span style={{ fontSize: 15, fontWeight: 600, color: T.text }}>일기</span>
+        <div style={{ position: "relative" }}>
+          <button onClick={() => setShowMenu(v => !v)} style={{
+            background: "none", border: "none", cursor: "pointer",
+            fontSize: 18, color: T.sub, padding: "2px 4px", letterSpacing: 2,
+          }}>⋯</button>
+          {/* Dropdown menu */}
+          {showMenu && (
+            <div style={{
+              position: "absolute", top: 32, right: 0, zIndex: 20,
+              background: T.surface, borderRadius: 10,
+              border: `1px solid ${T.border}`,
+              boxShadow: "0 4px 16px rgba(0,0,0,0.10)",
+              minWidth: 100, overflow: "hidden",
+            }}>
+              <button onClick={() => { setShowMenu(false); onEdit(); }} style={{
+                display: "block", width: "100%", background: "none", border: "none",
+                padding: "10px 16px", fontSize: 13, color: T.text, textAlign: "left",
+                cursor: "pointer", fontFamily: font, borderBottom: `1px solid ${T.border}`,
+              }}>수정</button>
+              <button onClick={() => { setShowMenu(false); setShowDelete(true); }} style={{
+                display: "block", width: "100%", background: "none", border: "none",
+                padding: "10px 16px", fontSize: 13, color: T.red, textAlign: "left",
+                cursor: "pointer", fontFamily: font,
+              }}>삭제</button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Content */}
+      <div style={{ padding: "20px 16px" }}>
+        {/* Date & mood */}
+        <div style={{ display: "flex", justifyContent: "space-between",
+          alignItems: "center", marginBottom: 12 }}>
+          <span style={{ color: T.muted, fontSize: 12 }}>{diary.date}</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontSize: 20 }}>{moods[diary.mood - 1]}</span>
+            <span style={{ fontSize: 12, color: T.sub, fontWeight: 500 }}>
+              {moodLabels[diary.mood - 1]}
+            </span>
+          </div>
+        </div>
+
+        {/* Title */}
+        <h2 style={{ color: T.text, fontSize: 20, fontWeight: 700,
+          letterSpacing: "-0.03em", marginBottom: 20, lineHeight: 1.3 }}>
+          {diary.title}
+        </h2>
+
+        {/* Body */}
+        <div style={{ background: T.surface, borderRadius: 14,
+          border: `1px solid ${T.border}`, padding: "18px 16px", marginBottom: 16 }}>
+          <div style={{ color: T.text, fontSize: 14, lineHeight: 1.85,
+            whiteSpace: "pre-wrap" }}>{diary.content}</div>
+        </div>
+
+        {/* Tags */}
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {diary.tags.map((t, i) => <Tag key={t} label={t} idx={diary.tIdx[i]} />)}
+        </div>
+      </div>
+
+      {/* Delete confirmation modal */}
+      {showDelete && (
+        <Modal title="일기 삭제" onClose={() => setShowDelete(false)}>
+          <div style={{ color: T.sub, fontSize: 14, lineHeight: 1.6, marginBottom: 20 }}>
+            이 일기를 삭제할까요?<br />
+            <span style={{ color: T.muted, fontSize: 12 }}>삭제된 일기는 복구할 수 없습니다.</span>
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => setShowDelete(false)} style={{
+              flex: 1, background: T.bg, border: `1px solid ${T.border}`,
+              borderRadius: 10, padding: "10px", fontSize: 13, color: T.sub,
+              cursor: "pointer", fontFamily: font,
+            }}>취소</button>
+            <button onClick={() => { setShowDelete(false); onBack(); }} style={{
+              flex: 1, background: T.red, border: "none",
+              borderRadius: 10, padding: "10px", fontSize: 13, color: "#fff",
+              cursor: "pointer", fontFamily: font, fontWeight: 600,
+            }}>삭제</button>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// ── 일기 수정 ─────────────────────────────────────────────
+function DiaryEditScreen({ diary, onBack }) {
+  const [title, setTitle] = useState(diary?.title ?? "");
+  const [content, setContent] = useState(diary?.content ?? "");
+  const [tags, setTags] = useState(diary?.tags ?? []);
+  const [input, setInput] = useState("");
+  const [mood, setMood] = useState(diary ? diary.mood - 1 : 2);
+  const suggests = ["일상", "감정", "성장", "여행"];
+
+  const addTag = (t) => { if (t.trim() && !tags.includes(t.trim()) && tags.length < 10) setTags([...tags, t.trim()]); setInput(""); };
+  const removeTag = (t) => setTags(tags.filter(x => x !== t));
+
+  return (
+    <div style={{ background: T.bg, minHeight: "100%", fontFamily: font }}>
+      {/* Header */}
+      <div style={{ background: T.surface, padding: "16px 20px",
+        borderBottom: `1px solid ${T.border}`,
+        display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <button onClick={onBack} style={{
+            background: "none", border: "none", cursor: "pointer",
+            fontSize: 18, color: T.text, padding: 0, lineHeight: 1,
+            display: "flex", alignItems: "center",
+          }}>←</button>
+          <span style={{ color: T.text, fontSize: 17, fontWeight: 700,
+            letterSpacing: "-0.03em" }}>일기 수정</span>
+        </div>
+        <button onClick={onBack} style={{ background: T.text, color: "#fff", border: "none",
+          borderRadius: 10, padding: "8px 18px", fontSize: 13, fontWeight: 600,
+          cursor: "pointer", fontFamily: font }}>저장</button>
+      </div>
+
+      <div style={{ padding: "16px" }}>
+        {/* Title */}
+        <div style={{ background: T.surface, borderRadius: 14,
+          border: `1px solid ${T.border}`, padding: "14px 16px", marginBottom: 10 }}>
+          <div style={{ color: T.muted, fontSize: 11, fontWeight: 600,
+            letterSpacing: "0.05em", marginBottom: 8 }}>TITLE</div>
+          <input value={title} onChange={e => setTitle(e.target.value)}
+            placeholder="제목을 입력하세요"
+            style={{ width: "100%", border: "none", outline: "none",
+              background: "transparent", color: T.text, fontSize: 15,
+              fontWeight: 600, fontFamily: font, letterSpacing: "-0.02em",
+              boxSizing: "border-box" }} />
+        </div>
+
+        {/* Mood */}
+        <div style={{ background: T.surface, borderRadius: 14,
+          border: `1px solid ${T.border}`, padding: "14px 16px", marginBottom: 10 }}>
+          <div style={{ color: T.muted, fontSize: 11, fontWeight: 600,
+            letterSpacing: "0.05em", marginBottom: 10 }}>MOOD</div>
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            {moods.map((e, i) => (
+              <button key={i} onClick={() => setMood(i)} style={{
+                background: mood === i ? T.accentBg : "none",
+                border: `1.5px solid ${mood === i ? T.accent : T.border}`,
+                borderRadius: 10, padding: "8px 10px", cursor: "pointer",
+                display: "flex", flexDirection: "column", alignItems: "center", gap: 4
+              }}>
+                <span style={{ fontSize: 20 }}>{e}</span>
+                <span style={{ fontSize: 10, color: mood === i ? T.accent : T.muted,
+                  fontWeight: mood === i ? 600 : 400 }}>{moodLabels[i]}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Content */}
+        <div style={{ background: T.surface, borderRadius: 14,
+          border: `1px solid ${T.border}`, padding: "14px 16px", marginBottom: 10 }}>
+          <textarea value={content} onChange={e => setContent(e.target.value)}
+            placeholder="오늘 어떤 하루였나요?"
+            style={{ width: "100%", border: "none", outline: "none",
+              background: "transparent", color: T.text, fontSize: 14,
+              lineHeight: 1.75, resize: "none", minHeight: 120,
+              fontFamily: font, boxSizing: "border-box" }} />
+          <div style={{ color: T.muted, fontSize: 11, textAlign: "right" }}>{content.length}자</div>
+        </div>
+
+        {/* Tags */}
+        <div style={{ background: T.surface, borderRadius: 14,
+          border: `1px solid ${T.border}`, padding: "14px 16px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+            <div style={{ color: T.muted, fontSize: 11, fontWeight: 600,
+              letterSpacing: "0.05em" }}>TAGS</div>
+            <span style={{ color: T.muted, fontSize: 11 }}>{tags.length}/10</span>
+          </div>
+          {tags.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+              {tags.map((t, i) => (
+                <span key={t} style={{
+                  background: tagPalette[i % tagPalette.length][1],
+                  color: tagPalette[i % tagPalette.length][0],
+                  fontSize: 12, fontWeight: 500, padding: "3px 8px 3px 10px",
+                  borderRadius: 6, display: "flex", alignItems: "center", gap: 5
+                }}>
+                  #{t}
+                  <span onClick={() => removeTag(t)} style={{
+                    cursor: "pointer", fontSize: 14, lineHeight: 1,
+                    color: tagPalette[i % tagPalette.length][0], opacity: 0.5,
+                    fontWeight: 300
+                  }}>×</span>
+                </span>
+              ))}
+            </div>
+          )}
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <input value={input} onChange={e => setInput(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && addTag(input)}
+              placeholder="태그 추가 후 Enter"
+              disabled={tags.length >= 10}
+              style={{ flex: 1, border: `1px solid ${T.border}`, borderRadius: 8,
+                padding: "7px 12px", fontSize: 13, color: T.text,
+                background: T.bg, outline: "none", fontFamily: font,
+                opacity: tags.length >= 10 ? 0.5 : 1 }} />
+          </div>
+          <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+            {suggests.filter(s => !tags.includes(s)).map(s => (
+              <span key={s} onClick={() => addTag(s)} style={{
+                border: `1px solid ${T.border}`, borderRadius: 20,
+                padding: "3px 10px", fontSize: 11, color: T.sub,
+                cursor: "pointer", background: T.bg
+              }}>+ {s}</span>
+            ))}
+          </div>
         </div>
       </div>
     </div>
