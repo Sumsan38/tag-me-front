@@ -99,7 +99,7 @@
   - `types/tag.ts` — Tag, TagAutoCompleteResponse
   - `types/mindmap.ts` — MindmapNode, MindmapEdge, MindmapData
   - `types/search.ts` — SearchResult, SearchFilter
-  - `types/social.ts` — Circle, Challenge, Follow
+  - `types/social.ts` — Circle, CircleMember (role: ADMIN/MEMBER, isLeft), Challenge, ChallengeParticipant (role: ADMIN/PARTICIPANT, isLeft), ChallengeCheckin, Follow, ChatRoom, ChatMessage, FeedVisibility (PRIVATE/PUBLIC/CIRCLE/CHALLENGE)
   - `types/notification.ts` — Notification, NotificationType
 - [x] **공통 UI 컴포넌트 기본 구현**:
   - `Button` (primary, secondary, outline, danger 변형)
@@ -465,29 +465,25 @@
   - 프로필 이미지 변경 (S3 Pre-signed URL 연동 후 구현 — 현재 닉네임 변경만 완료)
   - 닉네임 변경 ✅ 완료
 
-### 9~10주차 — 써클 + 챌린지 UI
+### 9~10주차 — 팔로우 기능 UI
+
+> **설계 결정 (2026-04-06)**: 써클/챌린지 UI는 백엔드와 동일하게 마인드맵 이후(17주차 영역)로 이동.
+> 팔로우 기능은 `GET /api/v1/feeds/following` API에 필요하므로 이 시점에 구현.
 
 - [ ] `api/social.ts` 추가:
-  - `createCircle(data)`, `getCircles()`, `joinCircle(id)`
-  - `getChallenges()`, `getChallenge(id)`, `joinChallenge(id)`, `completeChallenge(id)`
-  - `createChallenge(data)`
-- [ ] **써클 페이지** (`src/app/(main)/social/circles/page.tsx`):
-- [ ] **써클 페이지** (`src/app/(auth)/social/circles/page.tsx`):
-  - 내 써클 목록 (태그 칩 포함)
-  - 써클 생성 모달 (이름 + 태그 입력)
-  - 써클 가입 버튼
-- [ ] **챌린지 페이지** (`src/app/(main)/social/challenges/page.tsx`):
-- [ ] **챌린지 페이지** (`src/app/(auth)/social/challenges/page.tsx`):
-  - 진행 중 / 완료 탭
-  - 챌린지 카드: 제목, 태그, 기간, 참여자 수, 진행률 바
-  - 챌린지 생성 모달 (제목, 설명, 태그, 기간)
-- [ ] **챌린지 상세 페이지** (`src/app/(public)/challenges/[id]/page.tsx`, SSR):
-  - 챌린지 정보 (제목, 설명, 태그, 기간)
-  - 참여자 목록 + 각 참여자 진행 상태
-  - 참여/완료 버튼
-- [ ] **써클 상세 페이지** (`src/app/(public)/circles/[id]/page.tsx`, SSR):
-  - 써클 소개, 태그 집합, 멤버 수, 관련 활동 노출
-  - 로그인 상태면 가입 CTA 노출
+  - `follow(userId)` → POST `/api/v1/users/{id}/follow`
+  - `unfollow(userId)` → DELETE `/api/v1/users/{id}/follow`
+  - `getFollowers(userId, cursor)` → GET `/api/v1/users/{id}/followers`
+  - `getFollowing(userId, cursor)` → GET `/api/v1/users/{id}/following`
+- [ ] `hooks/useFollow.ts` 작성:
+  - `useFollow()` — mutation, 낙관적 업데이트 (팔로워 수 즉시 반영)
+  - `useUnfollow()` — mutation, 낙관적 업데이트
+  - `useFollowers(userId)` — infinite query
+  - `useFollowing(userId)` — infinite query
+- [ ] **팔로우/언팔로우 버튼 컴포넌트** (`components/social/FollowButton.tsx`):
+  - 본인 프로필이면 숨김
+  - 팔로우 중이면 "팔로잉" 표시, hover 시 "언팔로우" 변경
+- [ ] 프로필 페이지에 팔로워/팔로잉 수 + 팔로우 버튼 통합
 
 ---
 
@@ -586,7 +582,7 @@
 - [ ] **알림 페이지** (`src/app/(main)/notifications/page.tsx`):
 - [ ] **알림 페이지** (`src/app/(auth)/notifications/page.tsx`):
   - 알림 목록 (무한 스크롤)
-  - 알림 카드: 타입 아이콘 (스트릭/회고/트렌딩) + 메시지 + 시간 + 읽음 여부
+  - 알림 카드: 타입 아이콘 (스트릭/회고/트렌딩/MILESTONE/CHALLENGE_COMPLETE) + 메시지 + 시간 + 읽음 여부
   - 클릭 시 읽음 처리 + 관련 페이지 이동
   - 상단 미읽 알림 수 뱃지 (Header에 연동)
   - 중복 알림이 보이지 않도록 dedup 응답 가정 검증
@@ -596,15 +592,175 @@
   - `getUnreadCount()` → GET `/api/v1/notifications/unread-count`
 - [ ] `hooks/useNotification.ts` 작성
 
-### 17주차 — 챌린지 상세 UI
+### 17주차 — Circle/Challenge 기본 UI (백엔드 17주차 동기화)
 
-- [ ] **챌린지 진행률 바 컴포넌트** (`components/social/ChallengeProgress.tsx`):
+> **설계 결정 (2026-04-06)**: 백엔드 17주차 Circle/Challenge CRUD 완성 후 프론트 연동.
+> 멤버 관리에 `role` (ADMIN/MEMBER, ADMIN/PARTICIPANT)과 `isLeft` 개념 도입.
+
+**API 클라이언트**
+- [ ] `api/circle.ts` 작성:
+  - `createCircle(data)` → POST `/api/v1/circles` (name, description, imageUrl, tagNames[])
+  - `deleteCircle(id)` → DELETE `/api/v1/circles/{id}` (ADMIN 전용)
+  - `getMyCircles()` → GET `/api/v1/circles`
+  - `getCircle(id)` → GET `/api/v1/circles/{id}`
+  - `joinCircle(id)` → POST `/api/v1/circles/{id}/join`
+  - `leaveCircle(id)` → DELETE `/api/v1/circles/{id}/leave`
+- [ ] `api/challenge.ts` 작성:
+  - `createChallenge(data)` → POST `/api/v1/challenges` (title, description, imageUrl, goalCount, startDate, endDate, tagNames[])
+  - `deleteChallenge(id)` → DELETE `/api/v1/challenges/{id}` (ADMIN 전용)
+  - `getChallenges(filter?)` → GET `/api/v1/challenges` (진행중/완료 필터)
+  - `getChallenge(id)` → GET `/api/v1/challenges/{id}`
+  - `joinChallenge(id)` → POST `/api/v1/challenges/{id}/join`
+  - `leaveChallenge(id)` → DELETE `/api/v1/challenges/{id}/leave`
+
+**React Query 훅**
+- [ ] `hooks/useCircle.ts` 작성:
+  - `useMyCircles()` — query
+  - `useCircle(id)` — query
+  - `useCreateCircle()` — mutation (ADMIN)
+  - `useDeleteCircle()` — mutation (ADMIN)
+  - `useJoinCircle()`, `useLeaveCircle()` — mutation
+- [ ] `hooks/useChallenge.ts` 작성:
+  - `useChallenges(filter?)` — query
+  - `useChallenge(id)` — query
+  - `useCreateChallenge()` — mutation (ADMIN)
+  - `useDeleteChallenge()` — mutation (ADMIN)
+  - `useJoinChallenge()`, `useLeaveChallenge()` — mutation
+
+**써클 UI**
+- [ ] **써클 목록 페이지** (`src/app/(auth)/social/circles/page.tsx`):
+  - 내 써클 목록 (태그 칩, 멤버 수, description 미리보기)
+  - 써클 생성 모달 (이름, 설명, 이미지, 태그 입력) — ADMIN 역할 자동 부여
+  - 써클 가입/탈퇴 버튼
+- [ ] **써클 상세 페이지** (`src/app/(public)/circles/[id]/page.tsx`, SSR):
+  - 써클 소개 (이름, 설명, 이미지, 태그 집합)
+  - 멤버 목록 (role 뱃지: ADMIN/MEMBER)
+  - 로그인 상태에서 비멤버면 가입 CTA, 멤버면 탈퇴 버튼
+  - ADMIN이면 삭제 버튼 (확인 모달)
+
+**챌린지 UI**
+- [ ] **챌린지 목록 페이지** (`src/app/(auth)/social/challenges/page.tsx`):
+  - 진행 중 / 완료 탭 필터
+  - 챌린지 카드: 제목, 설명, 태그, 기간 (D-day), 참여자 수, goalCount
+  - 챌린지 생성 모달 (제목, 설명, 이미지, goalCount, 시작일, 종료일, 태그) — ADMIN 역할 자동 부여
+- [ ] **챌린지 상세 페이지** (`src/app/(public)/challenges/[id]/page.tsx`, SSR):
+  - 챌린지 정보 (제목, 설명, 이미지, 태그, 기간, goalCount)
+  - 참여자 목록 (role 뱃지: ADMIN/PARTICIPANT)
+  - 참여/탈퇴 버튼
+  - ADMIN이면 삭제 버튼 (확인 모달)
+
+### 17-1주차 — 챌린지 v2 UI (H2 체크인 + H3 진행률 + H4 마일스톤 + H5 리캡 + H6 리더보드)
+
+> **선행 조건**: 17주차 챌린지 기본 UI 완료 + 백엔드 17-1주차 API 완료.
+
+**API + 훅**
+- [ ] `api/challenge.ts` 추가:
+  - `checkIn(challengeId)` → POST `/api/v1/challenges/{id}/checkin`
+  - `getProgress(challengeId)` → GET `/api/v1/challenges/{id}/progress`
+  - `getLeaderboard(challengeId)` → GET `/api/v1/challenges/{id}/leaderboard`
+  - `getRecap(challengeId)` → GET `/api/v1/challenges/{id}/recap`
+- [ ] `hooks/useChallenge.ts` 추가:
+  - `useCheckIn()` — mutation, 성공 시 progress 캐시 갱신
+  - `useProgress(challengeId)` — query
+  - `useLeaderboard(challengeId)` — query
+  - `useRecap(challengeId)` — query
+
+**페이지/컴포넌트**
+- [ ] **H2: 데일리 체크인 버튼** (`components/social/ChallengeCheckIn.tsx`):
+  - 오늘 체크인 여부에 따라 활성/비활성 상태
+  - 체크인 성공 시 체크 애니메이션 + 진행률 바 업데이트
+  - 하루 1회 제한 (서버 UNIQUE 제약, 클라이언트 UI 비활성화)
+- [ ] **H3: 진행률 대시보드** (`components/social/ChallengeProgress.tsx`):
+  - 본인 달성률: 원형 게이지 (체크인 수 / goalCount × 100%)
   - D-day 카운트다운
-  - 참여자 진행률 게이지 바
-  - 완주 시 뱃지 애니메이션
-- [ ] **챌린지 피드** (`components/social/ChallengeFeed.tsx`):
-  - 챌린지 참여자들의 관련 게시글 타임라인
-  - 응원 메시지/댓글
+  - 참가자별 진행률 바 목록
+- [ ] **H4: 마일스톤 알림 UI**:
+  - 알림 페이지에서 `type=MILESTONE` 알림 카드 렌더링
+  - 25%/50%/75%/100% 달성 뱃지 아이콘 매핑
+  - 100% 달성 시 축하 토스트 + 완주 뱃지 애니메이션
+- [ ] **H5: 리캡 카드** (`components/social/ChallengeRecap.tsx`):
+  - 챌린지 종료/완주 후 통계 인포그래픽:
+    - 체크인 일수, 달성률, 사용한 태그 TOP 5
+  - "SNS에 공유하기" 버튼 (html2canvas 캡처 → S3 업로드)
+- [ ] **H6: 리더보드** (`components/social/ChallengeLeaderboard.tsx`):
+  - 체크인 수 기준 참가자 랭킹 목록
+  - 본인 순위 하이라이팅
+  - 1/2/3위 메달 아이콘
+
+### 17-2주차 — 써클 v2 UI (C1~C6) + 챌린지 전용 피드 (H1)
+
+> **선행 조건**: 백엔드 17-2주차 feeds visibility 마이그레이션 + API 완료.
+> 피드 작성 시 `visibility` (PUBLIC/PRIVATE/CIRCLE/CHALLENGE) 선택 UI 필요.
+
+**API + 훅**
+- [ ] `api/circle.ts` 추가:
+  - `getCircleFeeds(circleId, cursor)` → GET `/api/v1/circles/{id}/feeds`
+  - `createCircleFeed(circleId, data)` → POST `/api/v1/circles/{id}/feeds`
+  - `getTagTrends(circleId)` → GET `/api/v1/circles/{id}/tag-trends`
+  - `getDigest(circleId)` → GET `/api/v1/circles/{id}/digest`
+  - `discoverCircles()` → GET `/api/v1/circles/discover`
+  - `pinFeed(circleId, feedId)` → POST `/api/v1/circles/{id}/feeds/{feedId}/pin`
+  - `unpinFeed(circleId, feedId)` → DELETE `/api/v1/circles/{id}/feeds/{feedId}/pin`
+- [ ] `api/challenge.ts` 추가:
+  - `getChallengeFeeds(challengeId, cursor)` → GET `/api/v1/challenges/{id}/feeds`
+  - `createChallengeFeed(challengeId, data)` → POST `/api/v1/challenges/{id}/feeds`
+- [ ] `hooks/useCircleFeed.ts`, `hooks/useChallengeFeed.ts` 작성: infinite query + mutation
+
+**피드 작성 UI 변경**
+- [ ] 게시글 작성 페이지에 **공개 범위 선택기** 추가:
+  - 공개(PUBLIC) / 비공개(PRIVATE) / 써클(CIRCLE) / 챌린지(CHALLENGE) 선택
+  - CIRCLE/CHALLENGE 선택 시 소속 써클/챌린지 드롭다운으로 scope_id 선택
+
+**써클 v2 컴포넌트**
+- [ ] **C1: 써클 전용 피드 타임라인** (써클 상세 페이지 탭):
+  - 써클 멤버 전용 피드 목록 (무한 스크롤, Cursor 페이지네이션)
+  - 써클 전용 피드 작성 버튼
+- [ ] **C2: 써클 태그 트렌드** (`components/social/CircleTagTrends.tsx`):
+  - 써클 내 인기 태그 TOP 10 목록 (사용 빈도 바 차트)
+  - 써클 상세 사이드바에 배치
+- [ ] **C3: 주간 다이제스트 카드** (`components/social/CircleDigest.tsx`):
+  - 주간 게시글 수, TOP 태그, 활발한 멤버
+  - 써클 상세 페이지 상단에 배치
+- [ ] **C4: 써클 발견 페이지** (`src/app/(auth)/social/circles/discover/page.tsx`):
+  - 사용자 태그 기반 추천 써클 목록
+  - 써클 카드: 이름, 설명, 태그, 멤버 수, 가입 버튼
+- [ ] **C6: 고정 게시글** (ADMIN 전용):
+  - 써클 피드에서 ADMIN이 게시글 고정/해제 버튼
+  - 고정된 게시글은 타임라인 최상단에 표시 (핀 아이콘)
+
+**챌린지 전용 피드 (H1)**
+- [ ] 챌린지 상세 페이지 탭에 전용 피드 타임라인 추가 (C1과 동일 패턴)
+
+### 17-3주차 — 실시간 채팅 UI (써클 + 챌린지 공용)
+
+> **선행 조건**: 백엔드 17-3주차 WebSocket + Redis Pub/Sub 인프라 완료.
+
+**인프라**
+- [ ] WebSocket(STOMP) 클라이언트 설정: `@stomp/stompjs` 또는 `sockjs-client` + `stompjs`
+- [ ] `stores/chatStore.ts` (Zustand):
+  - WebSocket 연결 상태 관리
+  - 메시지 실시간 수신 → 메시지 목록 업데이트
+  - 재연결 로직 (네트워크 끊김 대응)
+
+**API + 훅**
+- [ ] `api/chat.ts` 작성:
+  - `getMessages(roomId, cursor)` → GET `/api/v1/chat/rooms/{roomId}/messages` (REST fallback)
+- [ ] `hooks/useChat.ts` 작성:
+  - `useChatMessages(roomId)` — infinite query (이전 메시지 로드)
+  - `useSendMessage()` — WebSocket STOMP publish
+  - `useChatConnection(roomId)` — WebSocket 구독 관리
+
+**컴포넌트**
+- [ ] **채팅 메시지 목록** (`components/social/ChatMessageList.tsx`):
+  - 메시지 목록 (시간순), 내 메시지/상대 메시지 좌우 배치
+  - 상단 스크롤 시 이전 메시지 로드 (infinite scroll, 역방향)
+  - 새 메시지 수신 시 자동 스크롤
+- [ ] **채팅 입력창** (`components/social/ChatInput.tsx`):
+  - 텍스트 입력 + 전송 버튼
+  - Enter로 전송, Shift+Enter로 줄바꿈
+- [ ] **채팅 패널/페이지**:
+  - 써클 상세 / 챌린지 상세 페이지에서 채팅 탭으로 접근
+  - 슬라이드 패널 또는 별도 페이지 (`/social/circles/{id}/chat`, `/social/challenges/{id}/chat`)
 
 ### 18주차 — 월간 리포트 카드
 

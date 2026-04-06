@@ -84,9 +84,36 @@
 |------|------|
 | 자동완성 | 기존에 입력한 태그를 기반으로 자동완성 제안 |
 | 태그 메타데이터 | 입력 날짜, 연결된 태그, 연결된 게시글/일기 목록 |
-| 써클(Circle) 생성 | **복수의 태그 집합**으로 써클(소그룹) 생성 가능 (예: #러닝 + #새벽 + #건강으로 "새벽 러너" 써클) |
+| 써클(Circle) 생성 | **복수의 태그 집합**으로 써클(소그룹) 생성 가능 (예: #러닝 + #새벽 + #건강으로 "새벽 러너" 써클). ADMIN만 생성/삭제 가능 |
 | 써클 활동 기록 | 써클별 태그 및 활동 이력 저장 |
-| **🏆 태그 기반 챌린지** | **복수의 태그 집합**으로 N일 챌린지 생성, 참여자 피드 공유 및 완주 뱃지 지급 (예: #운동 + #식단으로 "30일 건강 챌린지") |
+| **🏆 태그 기반 챌린지** | **복수의 태그 집합**으로 N일 챌린지 생성, 참여자 피드 공유 및 완주 뱃지 지급 (예: #운동 + #식단으로 "30일 건강 챌린지"). ADMIN만 생성/삭제 가능 |
+| **v2 써클 기능** | 아래 써클 v2 기능 상세 참조 |
+| **v2 챌린지 기능** | 아래 챌린지 v2 기능 상세 참조 |
+
+#### 써클 v2 기능 상세 (2026-04-06 확정)
+
+| 코드 | 기능 | 설명 | 주요 API |
+|------|------|------|----------|
+| **C1** | 전용 피드 타임라인 | 써클 멤버만 볼 수 있는 전용 피드. `feeds.visibility=CIRCLE`, `scope_id=circleId`로 구분. 멤버십 검증 후 조회 | `GET /api/v1/circles/{id}/feeds`, `POST /api/v1/circles/{id}/feeds` |
+| **C2** | 써클 태그 트렌드 | 써클 전용 피드에서 사용된 태그의 사용 빈도를 집계하여 써클 내 인기 태그를 보여줌 | `GET /api/v1/circles/{id}/tag-trends` |
+| **C3** | 주간 다이제스트 | 지난 1주간 써클 피드 통계 요약 (게시글 수, TOP 태그, 활발한 멤버). 배치 생성 후 알림 발송 | `GET /api/v1/circles/{id}/digest` |
+| **C4** | 써클 발견 | 사용자의 태그 사용 이력과 써클의 태그 집합을 매칭하여 관심사에 맞는 써클 추천. circles.description, image_url 활용 | `GET /api/v1/circles/discover` |
+| **C6** | 고정 게시글 | ADMIN이 특정 피드를 써클 타임라인 최상단에 고정. 공지/규칙 용도 | `POST /api/v1/circles/{id}/feeds/{feedId}/pin`, `DELETE .../pin` |
+| **채팅** | 실시간 채팅 | 써클 멤버 간 실시간 텍스트 채팅. WebSocket(STOMP) + Redis Pub/Sub. 써클 생성 시 chat_room 자동 생성 | WebSocket `/ws/chat`, `GET /api/v1/chat/rooms/{roomId}/messages` |
+| **CRUD** | 생성/삭제 | ADMIN만 써클 생성·삭제 가능. 생성 시 생성자가 ADMIN 멤버로 자동 등록 | `POST /api/v1/circles`, `DELETE /api/v1/circles/{id}` |
+
+#### 챌린지 v2 기능 상세 (2026-04-06 확정)
+
+| 코드 | 기능 | 설명 | 주요 API |
+|------|------|------|----------|
+| **H1** | 전용 피드 타임라인 | 챌린지 참가자만 볼 수 있는 전용 피드. `feeds.visibility=CHALLENGE`, `scope_id=challengeId`. 체크인 피드와 일반 피드 모두 포함 | `GET /api/v1/challenges/{id}/feeds`, `POST /api/v1/challenges/{id}/feeds` |
+| **H2** | 데일리 체크인 | 참가자가 매일 1회 체크인. 피드 작성과 연동 가능 (선택). `challenge_checkins` 테이블에 기록 | `POST /api/v1/challenges/{id}/checkin` |
+| **H3** | 진행률 대시보드 | 참가자별 체크인 수 / goal_count로 달성률 계산. 전체 참가자 현황 한눈에 확인 | `GET /api/v1/challenges/{id}/progress` |
+| **H4** | 마일스톤 알림 | 진행률 25%/50%/75%/100% 도달 시 인앱 알림 발송. 100% 시 `completed_at` 갱신 + 완주 이벤트 | 체크인 시 자동 트리거 → notifications |
+| **H5** | 리캡 카드 | 챌린지 종료/완주 시 참가자별 활동 요약 (체크인 일수, 달성률, 사용 태그 TOP). 인포그래픽 → S3 저장 → 공유 | `GET /api/v1/challenges/{id}/recap` |
+| **H6** | 리더보드 | 체크인 수 기준 참가자 순위표. 동기 부여 및 경쟁 요소 | `GET /api/v1/challenges/{id}/leaderboard` |
+| **채팅** | 실시간 채팅 | 챌린지 참가자 간 실시간 텍스트 채팅. 써클과 동일 인프라 공유. 챌린지 생성 시 chat_room 자동 생성 | WebSocket `/ws/chat`, `GET /api/v1/chat/rooms/{roomId}/messages` |
+| **CRUD** | 생성/삭제 | ADMIN만 챌린지 생성·삭제 가능. 생성 시 생성자가 ADMIN 참가자로 자동 등록 | `POST /api/v1/challenges`, `DELETE /api/v1/challenges/{id}` |
 
 ### 2.4 마인드맵 페이지
 
@@ -350,7 +377,7 @@ Next.js를 단순 React 래퍼가 아닌 렌더링 전략을 기능별로 나눠
 | **Feed** | 공개 게시글, 좋아요, 댓글 | `Feed`, `Like`, `Comment` |
 | **Tag** | 태그 메타데이터, 자동완성, 연관 태그 | `Tag`, `TagCoOccurrence` |
 | **Mindmap** | 태그 집계, 마인드맵 시각화 데이터 | `MindmapSnapshot` |
-| **Social** | 써클, 챌린지, 팔로우, 유저 추천 | `Circle`, `CircleTag`, `Challenge`, `ChallengeTag` |
+| **Social** | 써클, 챌린지, 팔로우, 유저 추천, 실시간 채팅 | `Circle`, `CircleTag`, `Challenge`, `ChallengeTag`, `ChatRoom`, `ChatMessage` |
 | **Notification** | 스트릭 알림, 회고 카드, 트렌딩 알림 | `Notification` |
 
 **전체 프로젝트 패키지 구조 (MSA 분리를 고려한 도메인별 모듈 구성)**
@@ -994,19 +1021,22 @@ main 머지 → ECR 푸시 → EKS Rolling Update
 
 ---
 
-**[circles]** — 써클 (복수 태그 집합으로 구성) *(기존 단일 tag_id FK 제거)*
+**[circles]** — 써클 (복수 태그 집합으로 구성) *(v2: description, image_url, updated_at 추가)*
 
 | 컬럼 | 타입 | 설명 |
 |------|------|------|
 | id | BIGINT PK | |
 | name | VARCHAR | 써클 이름 |
-| created_by | BIGINT FK → users | |
+| description | TEXT | 써클 소개글 (v2: 써클 발견 C4) |
+| image_url | VARCHAR | 대표 이미지 CloudFront URL |
+| created_by | BIGINT FK → users | 생성자 (자동 ADMIN) |
 | is_deleted | BOOLEAN | |
 | created_at | TIMESTAMP | |
+| updated_at | TIMESTAMP | |
 
 ---
 
-**[circle_tags]** — 써클 ↔ 태그 N:N *(신규)*
+**[circle_tags]** — 써클 ↔ 태그 N:N
 
 | 컬럼 | 타입 | 설명 |
 |------|------|------|
@@ -1017,33 +1047,39 @@ main 머지 → ECR 푸시 → EKS Rolling Update
 
 ---
 
-**[circle_members]** — 써클 멤버십
+**[circle_members]** — 써클 멤버십 *(v2: role, is_left, left_at 추가)*
 
 | 컬럼 | 타입 | 설명 |
 |------|------|------|
 | id | BIGINT PK | |
 | circle_id | BIGINT FK → circles | |
 | user_id | BIGINT FK → users | |
+| role | VARCHAR | `ADMIN` \| `MEMBER` (생성자 자동 ADMIN) |
+| is_left | BOOLEAN | 탈퇴 여부 (필터링 기준) |
 | joined_at | TIMESTAMP | |
+| left_at | TIMESTAMP | 탈퇴 시각 (감사/운영용) |
 
 ---
 
-**[challenges]** — 태그 챌린지 *(복수 태그 집합으로 구성, challenge_tags로 관리)*
+**[challenges]** — 태그 챌린지 *(v2: image_url, goal_count, updated_at 추가)*
 
 | 컬럼 | 타입 | 설명 |
 |------|------|------|
 | id | BIGINT PK | |
 | title | VARCHAR | |
 | description | TEXT | |
+| image_url | VARCHAR | 대표 이미지 CloudFront URL |
+| goal_count | INT | 목표 체크인 일수 (진행률/마일스톤 기준) |
 | start_date | DATE | |
 | end_date | DATE | |
-| created_by | BIGINT FK → users | |
+| created_by | BIGINT FK → users | 생성자 (자동 ADMIN) |
 | is_deleted | BOOLEAN | |
 | created_at | TIMESTAMP | |
+| updated_at | TIMESTAMP | |
 
 ---
 
-**[challenge_tags]** — 챌린지 ↔ 태그 N:N *(신규)*
+**[challenge_tags]** — 챌린지 ↔ 태그 N:N
 
 | 컬럼 | 타입 | 설명 |
 |------|------|------|
@@ -1054,15 +1090,59 @@ main 머지 → ECR 푸시 → EKS Rolling Update
 
 ---
 
-**[challenge_participants]** — 챌린지 참여자
+**[challenge_participants]** — 챌린지 참여자 *(v2: role, is_left, left_at 추가)*
 
 | 컬럼 | 타입 | 설명 |
 |------|------|------|
 | id | BIGINT PK | |
 | challenge_id | BIGINT FK → challenges | |
 | user_id | BIGINT FK → users | |
+| role | VARCHAR | `ADMIN` \| `PARTICIPANT` (생성자 자동 ADMIN) |
+| is_left | BOOLEAN | 중도 포기 여부 (필터링 기준) |
 | completed_at | TIMESTAMP | NULL이면 진행 중 |
 | joined_at | TIMESTAMP | |
+| left_at | TIMESTAMP | 중도 포기 시각 (감사/운영용) |
+
+---
+
+**[challenge_checkins]** — 챌린지 데일리 체크인 *(v2 신규)*
+
+| 컬럼 | 타입 | 설명 |
+|------|------|------|
+| id | BIGINT PK | |
+| challenge_id | BIGINT FK → challenges | |
+| user_id | BIGINT FK → users | |
+| checkin_date | DATE | 체크인 날짜 (하루 1회) |
+| feed_id | BIGINT FK → feeds | 연동 피드 (선택) |
+| created_at | TIMESTAMP | |
+
+> UNIQUE (challenge_id, user_id, checkin_date). 진행률 = checkin 수 / goal_count.
+
+---
+
+**[chat_rooms]** — 실시간 채팅방 *(v2 신규)*
+
+| 컬럼 | 타입 | 설명 |
+|------|------|------|
+| id | BIGINT PK | |
+| scope_type | VARCHAR | `CIRCLE` \| `CHALLENGE` |
+| scope_id | BIGINT | circle_id 또는 challenge_id |
+| created_at | TIMESTAMP | |
+
+> UNIQUE (scope_type, scope_id). WebSocket(STOMP) + Redis Pub/Sub 기반 실시간 전송.
+
+---
+
+**[chat_messages]** — 채팅 메시지 *(v2 신규)*
+
+| 컬럼 | 타입 | 설명 |
+|------|------|------|
+| id | BIGINT PK | |
+| room_id | BIGINT FK → chat_rooms | |
+| user_id | BIGINT FK → users | 발신자 |
+| content | TEXT | |
+| is_deleted | BOOLEAN | |
+| created_at | TIMESTAMP | |
 
 ---
 
