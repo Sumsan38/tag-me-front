@@ -23,11 +23,11 @@ Use this skill for backend application-layer work. Define ports first, then impl
 - Cache invalidation belongs in the service layer, not the controller layer.
 - Event payloads should be rich enough to avoid unnecessary DB re-queries in handlers.
 - Preserve pair ordering and source-priority rules in tag interaction logic.
-- Follow account-deletion behavior for diary deletion, post anonymization, PII removal, and Redis cleanup.
+- Follow account-deletion behavior for diary deletion, feed anonymization, PII removal, and Redis cleanup.
 
 ## Tag Me specifics
 
-- `primarySource` priority is `diary > post > comment > like`.
+- `primarySource` priority is `diary > feed > comment > like`.
 - `tag_co_occurrences` inserts keep `tag_id_a < tag_id_b`.
 - Report-sharing flows return CloudFront-backed URLs with social preview support.
 - Service tests should mock Redis and Elasticsearch integrations where needed.

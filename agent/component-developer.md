@@ -45,9 +45,9 @@ const colors = {
 ### Molecules
 ```
 <TagInput tags onChange suggestions />  ← 태그 추가/삭제 + 자동완성 + 추천 태그
-<PostCard post onLike onComment />      ← 피드 게시글 카드 (낙관적 업데이트)
+<FeedCard feed onLike onComment />      ← 피드 게시글 카드 (낙관적 업데이트)
 <DiaryCard diary />                     ← 일기 목록 카드
-<RecommendFeedCard post matchedTags />  ← 일기 완성 후 추천 카드 (일치 태그 하이라이팅)
+<RecommendFeedCard feed matchedTags />  ← 일기 완성 후 추천 카드 (일치 태그 하이라이팅)
 <StreakBadge count />                   ← 🔥 N일 스트릭 뱃지
 <TrendingTagList tags />                ← 오늘의 트렌딩 태그 목록
 ```
@@ -100,7 +100,7 @@ interface StreakWidgetProps {
 ```typescript
 // 컴포넌트에서의 사용 예시 (훅은 api-integration이 구현)
 const { mutate: toggleLike } = useToggleLike()
-<button onClick={() => toggleLike(postId)}>좋아요</button>
+<button onClick={() => toggleLike(feedId)}>좋아요</button>
 ```
 
 ## 검색 관련 컴포넌트

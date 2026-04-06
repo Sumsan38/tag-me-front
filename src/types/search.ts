@@ -25,14 +25,14 @@ export type { SearchHighlight };
 /**
  * 검색 대상 구분.
  *   - 'diary' : 개인 일기 (본인만 검색 가능)
- *   - 'post'  : 공개 피드 게시글
+ *   - 'feed'  : 공개 피드 게시글
  */
-export type SearchResultType = 'diary' | 'post';
+export type SearchResultType = 'diary' | 'feed';
 
 /**
  * 통합 검색 결과 단건.
  * score는 관련도 점수이며 정렬 근거이다 (제목 ×3, 태그 ×2, 본문 ×1 가중치).
- * authorNickname은 피드(post) 결과에만 포함된다. 일기(diary)는 본인 소유이므로 미포함.
+ * authorNickname은 피드(feed) 결과에만 포함된다. 일기(diary)는 본인 소유이므로 미포함.
  * highlights는 검색 키워드 하이라이팅 데이터이며, 렌더링 시 XSS 방지 처리가 필요하다.
  */
 export interface SearchResult {
@@ -41,7 +41,7 @@ export interface SearchResult {
   title: string;
   content: string;
   tags: string[];
-  authorNickname?: string; // 피드(post)만 포함
+  authorNickname?: string; // 피드(feed)만 포함
   createdAt: string;       // ISO 8601
   score: number;
   highlights: SearchHighlight;
@@ -56,7 +56,7 @@ export interface SearchResult {
  * q는 필수이며 최소 1자 이상이어야 한다.
  * fromDate / toDate는 'yyyy-MM-dd' 형식으로 전달한다.
  * tags는 복수 태그 AND 필터이다.
- * author는 작성자 닉네임 필터이며 피드(post) 결과에만 적용된다.
+ * author는 작성자 닉네임 필터이며 피드(feed) 결과에만 적용된다.
  */
 export interface SearchFilter {
   q: string;

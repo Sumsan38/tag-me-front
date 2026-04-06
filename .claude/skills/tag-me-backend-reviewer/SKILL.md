@@ -19,7 +19,7 @@ Use this skill in review mode. Prioritize blocking defects, regression risks, an
 - Hexagonal boundaries stay intact across domain, application, and adapter layers.
 - Event-driven updates keep `user_tag_interactions` and `tag_co_occurrences` in sync.
 - `tag_id_a < tag_id_b` is preserved where pair ordering matters.
-- Diary and post deletion semantics respect soft delete and anonymization rules.
+- Diary and feed deletion semantics respect soft delete and anonymization rules.
 - Redis keys, TTLs, and invalidation rules follow the project conventions.
 - OAuth, refresh-token storage, blacklist handling, and access control are complete.
 - Integration or unit tests cover the changed business rules.

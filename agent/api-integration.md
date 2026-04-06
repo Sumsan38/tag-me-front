@@ -78,14 +78,14 @@ useQuery({ queryKey: ['diary', id, 'recommend'], enabled: !!id,
 // 좋아요 토글 낙관적 업데이트
 useMutation({
   mutationFn: likeApi.toggle,
-  onMutate: async (postId) => {
-    await queryClient.cancelQueries({ queryKey: ['posts'] })
-    const prev = queryClient.getQueryData<CursorPage<Post>>(['posts'])
-    queryClient.setQueryData(['posts'], optimisticToggleLike(prev, postId))
+  onMutate: async (feedId) => {
+    await queryClient.cancelQueries({ queryKey: ['feeds'] })
+    const prev = queryClient.getQueryData<CursorPage<Feed>>(['feeds'])
+    queryClient.setQueryData(['feeds'], optimisticToggleLike(prev, feedId))
     return { prev }
   },
-  onError: (_, __, ctx) => queryClient.setQueryData(['posts'], ctx?.prev),
-  onSettled: () => queryClient.invalidateQueries({ queryKey: ['posts'] }),
+  onError: (_, __, ctx) => queryClient.setQueryData(['feeds'], ctx?.prev),
+  onSettled: () => queryClient.invalidateQueries({ queryKey: ['feeds'] }),
 })
 ```
 

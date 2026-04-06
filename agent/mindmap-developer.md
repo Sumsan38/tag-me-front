@@ -21,10 +21,10 @@ interface MindmapNode {
   id: string           // tag_id
   label: string        // 태그명
   count: number        // 해당 기간 사용 횟수
-  primarySource: 'diary' | 'post' | 'like' | 'comment'
+  primarySource: 'diary' | 'feed' | 'like' | 'comment'
   // count 구성
   diaryCount: number
-  postCount: number
+  feedCount: number
   likeCount: number
   commentCount: number
 }
@@ -33,7 +33,7 @@ interface MindmapEdge {
   source: string       // tag_id_a
   target: string       // tag_id_b
   weight: number       // 공동 출현 횟수
-  sourceType: 'diary' | 'post' | 'like' | 'comment'
+  sourceType: 'diary' | 'feed' | 'like' | 'comment'
 }
 ```
 
@@ -91,8 +91,8 @@ interface TagDetailPanel {
   primarySource: string
   // 출처별 탭
   diaries: { id: string; title: string; date: string }[]
-  posts: { id: string; content: string; date: string }[]
-  interactions: { type: 'like' | 'comment'; postId: string; date: string }[]
+  feeds: { id: string; content: string; date: string }[]
+  interactions: { type: 'like' | 'comment'; feedId: string; date: string }[]
 }
 // 패널: 출처별 탭(일기 N건 / 게시글 N건 / 좋아요 N건) + 목록
 ```

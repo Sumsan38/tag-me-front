@@ -53,7 +53,7 @@
   - 에러 트래킹: `@sentry/nextjs`
 - [x] **TailwindCSS 커스텀 설정** (`tailwind.config.ts`):
   - 디자인 토큰 정의: 색상 팔레트 (primary, secondary, accent), 폰트 크기, 간격
-  - 태그 출처별 색상 정의: `diary` (진한 파란), `post` (진한 초록), `like` (연한 분홍/반투명), `comment` (연한 노랑/반투명)
+  - 태그 출처별 색상 정의: `diary` (진한 파란), `feed` (진한 초록), `like` (연한 분홍/반투명), `comment` (연한 노랑/반투명)
 - [x] **`next/font` 설정**: 한국어 폰트 사전 로드 (Pretendard 또는 Noto Sans KR)
 - [x] **ESLint + Prettier 설정**: `.eslintrc.json`, `.prettierrc` 작성
 - [x] **환경 변수 파일 설정**: `.env.local` (NEXT_PUBLIC_API_URL, NEXT_PUBLIC_SENTRY_DSN 등), `.env.example` 작성
@@ -95,7 +95,7 @@
   - `types/auth.ts` — User, LoginRequest, RegisterRequest, TokenResponse, WithdrawRequest
     - Identity 에러 코드 매핑 포함: `IDENTITY_003`(비밀번호 불일치), `IDENTITY_015`(이미 탈퇴한 계정), `IDENTITY_016`(탈퇴 30일 유예)
   - `types/diary.ts` — Diary, CreateDiaryRequest, DiaryListFilter
-  - `types/feed.ts` — Post, Comment, Like, CreatePostRequest
+  - `types/feed.ts` — Feed, Comment, Like, CreateFeedRequest
   - `types/tag.ts` — Tag, TagAutoCompleteResponse
   - `types/mindmap.ts` — MindmapNode, MindmapEdge, MindmapData
   - `types/search.ts` — SearchResult, SearchFilter
@@ -384,24 +384,24 @@
 
 **API + 훅**
 - [ ] `api/feed.ts` 작성:
-  - `createPost(data)` → POST `/api/v1/posts`
-  - `getPosts(cursor)` → GET `/api/v1/posts` (전체 공개)
-  - `getFollowingPosts(cursor)` → GET `/api/v1/posts/following`
-  - `getPost(id)` → GET `/api/v1/posts/{id}`
-  - `deletePost(id)` → DELETE `/api/v1/posts/{id}`
-  - `likePost(id)` → POST `/api/v1/posts/{id}/likes`
-  - `unlikePost(id)` → DELETE `/api/v1/posts/{id}/likes`
-  - `getComments(postId, cursor)` → GET `/api/v1/posts/{id}/comments`
-  - `createComment(postId, content)` → POST `/api/v1/posts/{id}/comments`
-  - `deleteComment(postId, commentId)` → DELETE `/api/v1/posts/{postId}/comments/{commentId}`
+  - `createFeed(data)` → POST `/api/v1/feeds`
+  - `getFeeds(cursor)` → GET `/api/v1/feeds` (전체 공개)
+  - `getFollowingFeeds(cursor)` → GET `/api/v1/feeds/following`
+  - `getFeed(id)` → GET `/api/v1/feeds/{id}`
+  - `deleteFeed(id)` → DELETE `/api/v1/feeds/{id}`
+  - `likeFeed(id)` → POST `/api/v1/feeds/{id}/likes`
+  - `unlikeFeed(id)` → DELETE `/api/v1/feeds/{id}/likes`
+  - `getComments(feedId, cursor)` → GET `/api/v1/feeds/{id}/comments`
+  - `createComment(feedId, content)` → POST `/api/v1/feeds/{id}/comments`
+  - `deleteComment(feedId, commentId)` → DELETE `/api/v1/feeds/{feedId}/comments/{commentId}`
 - [ ] `hooks/useFeed.ts` 작성:
-  - `usePosts()` — infinite query (전체 공개)
-  - `useFollowingPosts()` — infinite query
-  - `usePost(id)` — query
-  - `useCreatePost()` — mutation
-  - `useLikePost()` — mutation, **낙관적 업데이트** (좋아요 수 즉시 증가, UI 즉시 반영)
-  - `useUnlikePost()` — mutation, 낙관적 업데이트
-  - `useComments(postId)` — infinite query
+  - `useFeeds()` — infinite query (전체 공개)
+  - `useFollowingFeeds()` — infinite query
+  - `useFeed(id)` — query
+  - `useCreateFeed()` — mutation
+  - `useLikeFeed()` — mutation, **낙관적 업데이트** (좋아요 수 즉시 증가, UI 즉시 반영)
+  - `useUnlikeFeed()` — mutation, 낙관적 업데이트
+  - `useComments(feedId)` — infinite query
   - `useCreateComment()` — mutation
   - `useDeleteComment()` — mutation
 
@@ -507,12 +507,12 @@
   - **노드(태그)**: 원형 노드, 크기 = totalCount 비례, 텍스트 라벨
   - **노드 색상 — 태그 출처 시각화**:
     - `primarySource === 'diary'` → 진한 파란색
-    - `primarySource === 'post'` → 진한 초록색
+    - `primarySource === 'feed'` → 진한 초록색
     - `primarySource === 'like'` → 연한 분홍색 + 하트 아이콘
     - `primarySource === 'comment'` → 연한 노란색 + 말풍선 아이콘
   - **엣지(태그 연결)**: 선 두께 = weight 비례
   - **엣지 스타일 — source_type별**:
-    - `diary`/`post` → 실선
+    - `diary`/`feed` → 실선
     - `like` → 점선
     - `comment` → 파선 (dash-dot)
   - 줌/팬 인터랙션 (D3 zoom behavior)
@@ -527,7 +527,7 @@
   - 전체 / 직접 작성 / 좋아요 / 댓글 필터 토글 버튼
   - 선택된 필터에 맞게 마인드맵 노드/엣지 필터링
 - [ ] **태그 상세 패널 컴포넌트** (`components/mindmap/TagDetailPanel.tsx`):
-  - 태그명 + 출처별 count (diary: N, post: N, like: N, comment: N)
+  - 태그명 + 출처별 count (diary: N, feed: N, like: N, comment: N)
   - 탭: 일기 / 게시글 / 좋아요 / 댓글
   - 각 탭에서 해당 태그가 포함된 콘텐츠 리스트
   - 리스트 항목 클릭 시 해당 콘텐츠로 이동

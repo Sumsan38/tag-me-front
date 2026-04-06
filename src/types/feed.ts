@@ -3,8 +3,8 @@
  *
  * Feed 도메인 타입 정의.
  *
- * - Post: 공개 게시글 엔티티 (좋아요, 댓글 집계 포함)
- * - CreatePostRequest: 게시글 작성 요청 바디
+ * - Feed: 공개 게시글 엔티티 (좋아요, 댓글 집계 포함)
+ * - CreateFeedRequest: 게시글 작성 요청 바디
  * - Comment: 댓글 엔티티
  * - CreateCommentRequest: 댓글 작성 요청 바디
  * - Like: 좋아요 기록
@@ -23,7 +23,7 @@
  * isPublic이 false인 게시글은 본인만 조회 가능하다.
  * images는 CloudFront CDN URL 목록이다.
  */
-export interface Post {
+export interface Feed {
   id: string;
   content: string;
   images: string[];          // CloudFront CDN URL 목록
@@ -38,7 +38,7 @@ export interface Post {
   createdAt: string;         // ISO 8601
 }
 
-export interface CreatePostRequest {
+export interface CreateFeedRequest {
   content: string;
   imageUrls: string[];       // CloudFront CDN URL 목록 (S3 업로드 완료 후 전달)
   tags: string[];
@@ -51,7 +51,7 @@ export interface CreatePostRequest {
 
 export interface Comment {
   id: string;
-  postId: string;
+  feedId: string;
   content: string;
   authorId: string;
   authorNickname: string;
@@ -73,6 +73,6 @@ export interface CreateCommentRequest {
  */
 export interface Like {
   userId: string;
-  postId: string;
+  feedId: string;
   createdAt: string; // ISO 8601
 }

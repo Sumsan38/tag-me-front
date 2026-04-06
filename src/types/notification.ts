@@ -19,8 +19,8 @@
  *   - 'trending_tag'       : 트렌딩 태그 알림
  *   - 'challenge_complete' : 챌린지 완료 알림
  *   - 'new_follower'       : 새 팔로워 알림
- *   - 'post_liked'         : 내 게시글 좋아요 알림
- *   - 'post_commented'     : 내 게시글 댓글 알림
+ *   - 'feed_liked'         : 내 게시글 좋아요 알림
+ *   - 'feed_commented'     : 내 게시글 댓글 알림
  */
 export type NotificationType =
   | 'streak_reminder'
@@ -28,8 +28,8 @@ export type NotificationType =
   | 'trending_tag'
   | 'challenge_complete'
   | 'new_follower'
-  | 'post_liked'
-  | 'post_commented';
+  | 'feed_liked'
+  | 'feed_commented';
 
 // ---------------------------------------------------------------------------
 // 알림 엔티티
@@ -38,7 +38,7 @@ export type NotificationType =
 /**
  * 알림 단건.
  * referenceId는 알림과 관련된 리소스의 ID이다.
- *   - 'post_liked' / 'post_commented' → postId
+ *   - 'feed_liked' / 'feed_commented' → feedId
  *   - 'new_follower' → userId
  *   - 'challenge_complete' → challengeId
  *   - 'retrospect' → diaryId
