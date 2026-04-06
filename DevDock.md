@@ -263,6 +263,27 @@ Identity 구현의 해석 차이를 줄이기 위해 계정 정책을 아래와 
 | 읽음 처리 | 인앱 알림 개별 읽음 + 미읽음 개수 제공 |
 | 실패 재시도 | 배치 알림은 재시도 가능, 실시간 알림은 로그 적재 후 후속 복구 |
 | 보존 기간 | 기본 90일, 이후 soft delete 또는 archive 정책 적용 |
+| 알림 설정 | 사용자별 타입별 on/off (`notification_preferences` 테이블). 미등록 타입은 기본 enabled |
+
+#### 소셜 알림 타입
+
+| 타입 | 트리거 이벤트 | 수신자 | 메시지 예시 |
+|------|--------------|--------|-------------|
+| `LIKE` | `LikeAddedEvent` | 피드 작성자 | "{닉네임}님이 게시글에 좋아요를 눌렀습니다" |
+| `COMMENT` | `CommentAddedEvent` | 피드 작성자 | "{닉네임}님이 게시글에 댓글을 남겼습니다" |
+| `FOLLOW` | Follow 생성 | 팔로우 대상 | "{닉네임}님이 나를 팔로우했습니다" |
+
+#### 소셜 알림 정책 상세
+
+| 항목 | 정책 |
+|------|------|
+| **자기 자신 제외** | 본인 피드에 본인 좋아요/댓글 → 알림 생성 X |
+| **집계 방식** | **Phase 1: 건별 즉시 발송** (DAU 1,000 규모에 적합). **Phase 2 전환 예정**: 미읽은 동일 피드 알림이 있으면 payload 갱신으로 집계 ("홍길동님 외 N명"), 읽은 뒤 새 알림 생성 |
+| **좋아요 취소 → 재좋아요** | 취소 시 미읽은 LIKE 알림 소프트 삭제. 재좋아요 시 새 알림 생성 |
+| **댓글 여러 개** | 같은 유저가 같은 피드에 댓글 여러 개 → 건별 알림 (내용이 다르므로 묶지 않음) |
+| **미읽은 알림 소프트 삭제** | 좋아요 취소 → 미읽은 LIKE 알림 삭제, 댓글 삭제 → 미읽은 COMMENT 알림 삭제, 언팔로우 → 미읽은 FOLLOW 알림 삭제, 피드 삭제 → 해당 피드의 모든 미읽은 LIKE/COMMENT 알림 삭제 |
+| **이미 읽은 알림** | 읽은 뒤 원본 행위가 취소되어도 알림 유지 (히스토리 보존) |
+| **payload 스냅샷** | `actorNickname`은 알림 생성 시점 스냅샷 저장 (JOIN 비용 제거). 닉네임 변경 시 과거 알림은 옛날 값 유지 |
 
 ### 2.11 데이터 보존/삭제 정책
 
@@ -378,7 +399,7 @@ Next.js를 단순 React 래퍼가 아닌 렌더링 전략을 기능별로 나눠
 | **Tag** | 태그 메타데이터, 자동완성, 연관 태그 | `Tag`, `TagCoOccurrence` |
 | **Mindmap** | 태그 집계, 마인드맵 시각화 데이터 | `MindmapSnapshot` |
 | **Social** | 써클, 챌린지, 팔로우, 유저 추천, 실시간 채팅 | `Circle`, `CircleTag`, `Challenge`, `ChallengeTag`, `ChatRoom`, `ChatMessage` |
-| **Notification** | 스트릭 알림, 회고 카드, 트렌딩 알림 | `Notification` |
+| **Notification** | 스트릭 알림, 회고 카드, 트렌딩 알림, 소셜 알림 (좋아요/댓글/팔로우) | `Notification`, `NotificationPreference` |
 
 **전체 프로젝트 패키지 구조 (MSA 분리를 고려한 도메인별 모듈 구성)**
 
@@ -542,7 +563,8 @@ com.tagdiary/
 ├── notification/                    ← 스트릭 알림 / 회고 카드 / 트렌딩 알림
 │   ├── domain/
 │   │   ├── Notification.java           ← Aggregate Root
-│   │   └── NotificationType.java       ← Enum (STREAK / RETROSPECT / TRENDING)
+│   │   ├── NotificationType.java       ← Enum (STREAK / RETROSPECT / TRENDING / LIKE / COMMENT / FOLLOW / MILESTONE / CHALLENGE_COMPLETE)
+│   │   └── NotificationPreference.java ← 사용자별 타입별 알림 설정
 │   ├── application/
 │   │   ├── port/
 │   │   │   ├── in/
@@ -918,6 +940,17 @@ main 머지 → ECR 푸시 → EKS Rolling Update
 > | `comment` | `CommentAddedEvent` | 이벤트 payload의 태그 목록 | FeedService |
 >
 > `user_tag_interactions` 삽입과 `tag_co_occurrences` 쌍 생성은 **동일 이벤트 핸들러에서 순서대로 처리**한다. 태그 목록을 이벤트 payload에 담아 전달하면 두 번의 DB 조회 없이 처리 가능하다.
+>
+> **소셜 알림 이벤트 파이프라인**
+>
+> | 이벤트 | 알림 타입 | 수신자 | 조건 | 미읽은 알림 삭제 트리거 |
+> |--------|-----------|--------|------|------------------------|
+> | `LikeAddedEvent` | `LIKE` | 피드 작성자 | 자기 자신 제외, 수신자 알림 설정 확인 | 좋아요 취소 시 / 피드 삭제 시 |
+> | `CommentAddedEvent` | `COMMENT` | 피드 작성자 | 자기 자신 제외, 수신자 알림 설정 확인 | 댓글 삭제 시 / 피드 삭제 시 |
+> | Follow 생성 | `FOLLOW` | 팔로우 대상 | 수신자 알림 설정 확인 | 언팔로우 시 |
+>
+> - 집계 방식: **Phase 1 — 건별 즉시 발송** (DAU 1,000 규모). Phase 2에서 미읽은 동일 피드 알림 payload 갱신 방식으로 전환 예정 ("홍길동님 외 N명")
+> - payload에 `actorNickname` 스냅샷 저장 (JOIN 비용 제거)
 >
 > **태그 수정 처리 (`DiaryUpdatedEvent` / `FeedUpdatedEvent`)**
 >

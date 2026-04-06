@@ -100,7 +100,7 @@
   - `types/mindmap.ts` — MindmapNode, MindmapEdge, MindmapData
   - `types/search.ts` — SearchResult, SearchFilter
   - `types/social.ts` — Circle, CircleMember (role: ADMIN/MEMBER, isLeft), Challenge, ChallengeParticipant (role: ADMIN/PARTICIPANT, isLeft), ChallengeCheckin, Follow, ChatRoom, ChatMessage, FeedVisibility (PRIVATE/PUBLIC/CIRCLE/CHALLENGE)
-  - `types/notification.ts` — Notification, NotificationType
+  - `types/notification.ts` — Notification, NotificationType (STREAK/RETROSPECT/TRENDING/LIKE/COMMENT/FOLLOW/MILESTONE/CHALLENGE_COMPLETE), NotificationPreference
 - [x] **공통 UI 컴포넌트 기본 구현**:
   - `Button` (primary, secondary, outline, danger 변형)
   - `Input` (텍스트, 비밀번호, 검색)
@@ -582,15 +582,30 @@
 - [ ] **알림 페이지** (`src/app/(main)/notifications/page.tsx`):
 - [ ] **알림 페이지** (`src/app/(auth)/notifications/page.tsx`):
   - 알림 목록 (무한 스크롤)
-  - 알림 카드: 타입 아이콘 (스트릭/회고/트렌딩/MILESTONE/CHALLENGE_COMPLETE) + 메시지 + 시간 + 읽음 여부
+  - 알림 카드: 타입별 아이콘 + 메시지 + 시간 + 읽음 여부
+    - `LIKE` — 하트 아이콘 + "{닉네임}님이 게시글에 좋아요를 눌렀습니다" + 클릭 시 피드 상세 이동
+    - `COMMENT` — 말풍선 아이콘 + "{닉네임}님이 게시글에 댓글을 남겼습니다" + 댓글 미리보기 + 클릭 시 피드 상세 이동
+    - `FOLLOW` — 사람 아이콘 + "{닉네임}님이 나를 팔로우했습니다" + 클릭 시 프로필 이동
+    - `STREAK` / `RETROSPECT` / `TRENDING` / `MILESTONE` / `CHALLENGE_COMPLETE` — 기존 타입
   - 클릭 시 읽음 처리 + 관련 페이지 이동
   - 상단 미읽 알림 수 뱃지 (Header에 연동)
   - 중복 알림이 보이지 않도록 dedup 응답 가정 검증
+- [ ] **알림 설정 페이지** (`src/app/(auth)/mypage/settings/page.tsx` 내 섹션 또는 별도):
+  - 알림 타입별 on/off 토글 (LIKE, COMMENT, FOLLOW, STREAK, RETROSPECT, TRENDING, MILESTONE, CHALLENGE_COMPLETE)
+  - 기본값: 모두 enabled
+  - `notification_preferences` API 연동
 - [ ] `api/notification.ts` 작성:
   - `getNotifications(cursor)` → GET `/api/v1/notifications`
   - `markAsRead(id)` → PATCH `/api/v1/notifications/{id}/read`
   - `getUnreadCount()` → GET `/api/v1/notifications/unread-count`
-- [ ] `hooks/useNotification.ts` 작성
+  - `getPreferences()` → GET `/api/v1/notifications/preferences`
+  - `updatePreferences(prefs)` → PUT `/api/v1/notifications/preferences`
+- [ ] `hooks/useNotification.ts` 작성:
+  - `useNotifications()` — infinite query
+  - `useMarkAsRead()` — mutation
+  - `useUnreadCount()` — query (Header 뱃지 연동, polling 또는 WebSocket)
+  - `useNotificationPreferences()` — query
+  - `useUpdatePreferences()` — mutation
 
 ### 17주차 — Circle/Challenge 기본 UI (백엔드 17주차 동기화)
 
