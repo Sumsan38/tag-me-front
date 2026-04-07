@@ -99,8 +99,8 @@
   - `types/tag.ts` — Tag, TagAutoCompleteResponse
   - `types/mindmap.ts` — MindmapNode, MindmapEdge, MindmapData
   - `types/search.ts` — SearchResult, SearchFilter
-  - `types/social.ts` — Circle, CircleMember (role: ADMIN/MEMBER, isLeft), Challenge, ChallengeParticipant (role: ADMIN/PARTICIPANT, isLeft), ChallengeCheckin, Follow, ChatRoom, ChatMessage, FeedVisibility (PRIVATE/PUBLIC/CIRCLE/CHALLENGE)
-  - `types/notification.ts` — Notification, NotificationType (STREAK/RETROSPECT/TRENDING/LIKE/COMMENT/FOLLOW/MILESTONE/CHALLENGE_COMPLETE), NotificationPreference
+  - `types/social.ts` — Circle, CircleMember (role: ADMIN/MEMBER, isLeft), Challenge, ChallengeParticipant (role: ADMIN/PARTICIPANT, isLeft), ChallengeCheckin, Follow, ChatRoom, ChatMessage, FeedVisibility (PRIVATE/PUBLIC/CIRCLE/CHALLENGE), TagFriendMatch, TagFriendMessage, UserBlock, UserReport (targetType: USER/FEED/COMMENT, reasonType: SPAM/HARASSMENT/INAPPROPRIATE_CONTENT/OTHER), UserSanction (type: WARNING/HIDE/SUSPEND/BAN)
+  - `types/notification.ts` — Notification, NotificationType (STREAK/RETROSPECT/TRENDING/LIKE/COMMENT/FOLLOW/MILESTONE/CHALLENGE_COMPLETE/SANCTION_WARNING), NotificationPreference
 - [x] **공통 UI 컴포넌트 기본 구현**:
   - `Button` (primary, secondary, outline, danger 변형)
   - `Input` (텍스트, 비밀번호, 검색)
@@ -840,19 +840,37 @@
   - `IDENTITY_016`(409) 수신 시 "탈퇴 후 30일이 경과하지 않아 가입할 수 없습니다" 안내
   - 회원가입 페이지 + OAuth 콜백 페이지 양쪽에서 처리
 
-### 20주차 — 1:1 태그 친구
+### 20주차 — 1:1 태그 친구 + 차단/신고
+
+> **정책 확정 (2026-04-07)**: 최대 수 무제한, 재매칭 제한 없음 (랜덤성 분산).
+> 소통: 응원 메시지(100자) + 1:1 채팅 (17주차 채팅 인프라 재활용).
+> 차단: 피드/댓글 비노출 + 자동 언팔로우 + 팔로우 불가.
+> 신고: polymorphic (USER/FEED/COMMENT), 10건 누적 시 자동 제재.
+> 제재: WARNING → HIDE → SUSPEND(403, 읽기 전용) → BAN(401, 로그인 차단). 기본 7일.
 
 - [ ] `api/social.ts` 추가:
-  - `requestTagFriend()`, `getTagFriends()`, `sendMessage(friendId, content)`, `getMessages(friendId)`
-- [ ] **태그 친구 페이지** (`src/app/(main)/social/tag-friends/page.tsx`):
+  - `requestTagFriend()`, `getTagFriends()`, `endTagFriend(friendId)`
+  - `sendMessage(matchId, content)`, `getMessages(matchId)` — 응원 메시지
+  - `blockUser(userId)`, `unblockUser(userId)`, `getBlockedUsers()`
+  - `reportTarget(targetType, targetId, reasonType, description?)` — polymorphic 신고
+- [ ] **태그 친구 페이지** (`src/app/(auth)/social/tag-friends/page.tsx`):
   - 매칭된 태그 친구 목록 (공통 태그 표시)
   - 새 매칭 요청 버튼
-- [ ] **응원 메시지 채팅 UI** (`components/social/TagFriendChat.tsx`):
-  - 간단한 메시지 목록 (텍스트만, 100자 제한)
+  - 매칭 종료 버튼
+- [ ] **응원 메시지 + 1:1 채팅 UI** (`components/social/TagFriendChat.tsx`):
+  - 응원 메시지 목록 (텍스트만, 100자 제한)
+  - 1:1 채팅 연동 (17주차 채팅 인프라 재활용, WebSocket)
   - 메시지 입력 + 전송
-- [ ] **태그 친구 안전 UX**:
-  - 차단/신고/대화 종료 UI
+- [ ] **차단/신고 UI**:
+  - 유저 프로필, 피드 카드, 댓글에 "신고/차단" 메뉴 추가
+  - 신고 모달: 유형 선택 (SPAM/HARASSMENT/INAPPROPRIATE_CONTENT/OTHER) + 상세 사유 입력
+  - 차단 확인 모달: "차단하면 서로의 피드/댓글이 보이지 않고 팔로우가 해제됩니다"
   - 차단된 상대 재노출 방지 처리
+  - 마이페이지 차단 목록 관리 (차단 해제 가능)
+- [ ] **제재 상태 대응 UI**:
+  - SUSPEND(403) 응답 감지 → 정지 안내 화면 (해제일시 표시, 쓰기 UI 비활성화)
+  - BAN(401) 응답 감지 → 영구 정지 안내 화면 리다이렉트
+  - WARNING 알림 수신 시 경고 모달 노출
 
 ### 21주차 — E2E 테스트 + 접근성
 
