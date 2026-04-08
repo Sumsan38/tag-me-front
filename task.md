@@ -335,52 +335,9 @@
 - [x] 테스트: API(7) + 훅(12) + 컴포넌트(23) = 총 82개 테스트 작성 및 통과
 - [x] QA 문서: `.qa/diary-qa.md` (75개 시나리오)
 
-### 5주차 — 태그 자동완성 + 검색 (Tag + Search 도메인)
+### 5주차 — 소셜 피드 기본 (Feed 도메인)
 
-> **백엔드 API 현황 (2026-03-31 기준)**
->
-> | 엔드포인트 | 백엔드 상태 | 비고 |
-> |---|---|---|
-> | `GET /api/v1/tags/autocomplete?q=` | **구현 완료** | 응답: `[{ tagId, displayName, canonical }]`. 빈 문자열/공백 → 400 |
-> | `GET /api/v1/tags/{id}/related` | **구현 완료** | 응답: `[{ tagId, displayName, canonical, coOccurrenceCount }]`. 존재하지 않는 태그 → 404 (TAG_001) |
-> | `GET /api/v1/tags/trending` | **미구현** | 백엔드 배치 Job + Redis 캐시 필요 |
-> | `GET /api/v1/tags/daily-prompt` | **미구현** | |
-> | `GET /api/v1/search` | **미구현** | 백엔드 6주차 Search 도메인 |
-> | `GET /api/v1/search/autocomplete` | **미구현** | 백엔드 6주차 Search 도메인 |
->
-> **`types/tag.ts` 동기화 필요 사항:**
-> - `TagSuggestion`: `usageCount` 필드 제거, `displayName`/`canonical` 필드 추가 (백엔드 응답과 불일치)
-> - `TagSuggestion.id`: 백엔드는 `tagId: number` — `string`에서 `number`로 변경 검토
-
-**API + 훅**
-- [ ] `api/tag.ts` 작성:
-  - `autocomplete(query)` → GET `/api/v1/tags/autocomplete?q=` — ✅ 백엔드 구현 완료
-  - `getRelatedTags(tagId)` → GET `/api/v1/tags/{id}/related` — ✅ 백엔드 구현 완료
-  - `getTrending()` → GET `/api/v1/tags/trending` — ❌ 백엔드 미구현
-  - `getDailyPrompt()` → GET `/api/v1/tags/daily-prompt` — ❌ 백엔드 미구현
-- [ ] `api/search.ts` 작성:
-  - `search(params)` → GET `/api/v1/search` (q, type, from, to, tags) — ❌ 백엔드 미구현
-  - `searchAutocomplete(query)` → GET `/api/v1/search/autocomplete?q=` — ❌ 백엔드 미구현
-- [ ] `hooks/useSearch.ts` 작성:
-  - `useSearch(params)` — infinite query
-  - `useSearchAutocomplete(query)` — query (debounce 300ms)
-
-**페이지 구현**
-- [ ] **통합 검색 페이지** (`src/app/(main)/search/page.tsx`):
-  - 검색바 (입력 중 자동완성 드롭다운)
-  - 탭: 전체 / 일기(Private) / 피드(Public)
-  - 필터 패널: 기간 선택 (date range picker), 태그 필터, 작성자 필터
-  - 검색 결과 카드 목록 (무한 스크롤)
-  - 검색 결과 카드에 **일치 키워드 하이라이팅** (백엔드 highlight 데이터 활용)
-  - 결과 없을 때 빈 상태 UI
-  - 인증 사용자용 CSR 페이지로 유지하되, 공개 SEO 대상 경로와 혼동되지 않도록 그룹 분리
-  - score 동점 시 최신순으로 정렬된 결과를 클라이언트에서 재정렬하지 않음
-- [ ] **검색 결과 카드 컴포넌트** (`components/search/SearchResultCard.tsx`):
-  - 타입 아이콘 (일기/피드 구분)
-  - 제목 (하이라이팅), 본문 미리보기 (하이라이팅), 태그 칩, 작성일
-  - 클릭 시 해당 일기/피드 상세로 이동
-
-### 6주차 — 소셜 피드 기본 (Feed 도메인)
+> **순서 변경 (2026-04-08)**: Diary + Feed 데이터만으로 마인드맵 v0.1을 먼저 그리기 위해 Feed → Mindmap → Search/Follow 순서로 재배치. 기존 5주차 Search와 6주차 Feed의 순서를 교체.
 
 **API + 훅**
 - [ ] `api/feed.ts` 작성:
@@ -439,57 +396,14 @@
 
 ---
 
-## Phase 3 — 소셜 기능 완성 (7~10주)
+## Phase 3 — 마인드맵 v0.1 + 소셜 기능 (7~10주)
 
-### 7~8주차 — 피드 인터랙션 + 팔로우
+> **순서 변경 (2026-04-08)**: Diary + Feed 데이터만으로 마인드맵 v0.1을 먼저 그리기 위해 마인드맵(7주차)을 Search/팔로우 앞으로 이동. 백엔드 8주차 Mindmap API 완성 후 바로 프론트 연동 가능.
 
-- [ ] **좋아요 낙관적 업데이트 구현**:
-  - 버튼 클릭 즉시 UI 반영 (하트 색상 변경 + 카운트 증가)
-  - 서버 실패 시 자동 롤백
-  - 연타 방지 (debounce)
-- [ ] **댓글 컴포넌트** (`components/feed/CommentList.tsx`):
-  - 댓글 목록 (무한 스크롤)
-  - 댓글 카드: 아바타 + 닉네임 + 내용 + 시간 + 삭제 버튼(본인만)
-  - 댓글 입력창 (하단 고정)
-- [ ] **팔로우/언팔로우 기능**:
-  - `api/social.ts`: `follow(userId)`, `unfollow(userId)`, `getFollowers(userId)`, `getFollowing(userId)`
-  - `hooks/useFollow.ts`: `useFollow()`, `useUnfollow()` mutation
-  - 프로필 페이지에 팔로우 버튼
-- [ ] **사용자 프로필 페이지** (`src/app/(main)/profile/[id]/page.tsx`, SSR):
-- [ ] **사용자 프로필 페이지** (`src/app/(public)/users/[id]/page.tsx`, SSR):
-  - 프로필 이미지, 닉네임, 팔로워/팔로잉 수
-  - 팔로우/언팔로우 버튼
-  - 해당 유저의 공개 게시글 목록
-  - 본인 프로필이면 수정 버튼
-- [ ] **프로필 수정 페이지** (`src/app/(auth)/mypage/edit/page.tsx`):
-  - 프로필 이미지 변경 (S3 Pre-signed URL 연동 후 구현 — 현재 닉네임 변경만 완료)
-  - 닉네임 변경 ✅ 완료
+### 7주차 — D3.js 마인드맵 (v0.1 — Diary + Feed 데이터 기반)
 
-### 9~10주차 — 팔로우 기능 UI
-
-> **설계 결정 (2026-04-06)**: 써클/챌린지 UI는 백엔드와 동일하게 마인드맵 이후(17주차 영역)로 이동.
-> 팔로우 기능은 `GET /api/v1/feeds/following` API에 필요하므로 이 시점에 구현.
-
-- [ ] `api/social.ts` 추가:
-  - `follow(userId)` → POST `/api/v1/users/{id}/follow`
-  - `unfollow(userId)` → DELETE `/api/v1/users/{id}/follow`
-  - `getFollowers(userId, cursor)` → GET `/api/v1/users/{id}/followers`
-  - `getFollowing(userId, cursor)` → GET `/api/v1/users/{id}/following`
-- [ ] `hooks/useFollow.ts` 작성:
-  - `useFollow()` — mutation, 낙관적 업데이트 (팔로워 수 즉시 반영)
-  - `useUnfollow()` — mutation, 낙관적 업데이트
-  - `useFollowers(userId)` — infinite query
-  - `useFollowing(userId)` — infinite query
-- [ ] **팔로우/언팔로우 버튼 컴포넌트** (`components/social/FollowButton.tsx`):
-  - 본인 프로필이면 숨김
-  - 팔로우 중이면 "팔로잉" 표시, hover 시 "언팔로우" 변경
-- [ ] 프로필 페이지에 팔로워/팔로잉 수 + 팔로우 버튼 통합
-
----
-
-## Phase 4 — 마인드맵 & 추천 (11~14주)
-
-### 11~12주차 — D3.js 마인드맵
+> 백엔드 8주차 Mindmap 도메인 완성 후 연동. `user_tag_interactions` + `tag_co_occurrences` 데이터로 마인드맵 시각화.
+> 기존 Phase 4(11~12주차)에서 이동 (2026-04-08).
 
 **API + 훅**
 - [ ] `api/mindmap.ts` 작성:
@@ -529,13 +443,110 @@
   - 리스트 항목 클릭 시 해당 콘텐츠로 이동
 
 **마인드맵 페이지 (CSR — 인터랙티브 시각화)**
-- [ ] **마인드맵 페이지** (`src/app/(main)/mindmap/page.tsx`):
 - [ ] **마인드맵 페이지** (`src/app/(auth)/mindmap/page.tsx`):
   - `MindmapVisualization` + `PeriodFilter` + `SourceFilter` 조합
   - 우측 또는 하단에 `TagDetailPanel` (사이드 패널)
   - 태그 없을 때 빈 상태 UI ("일기를 쓰거나 피드에서 좋아요를 눌러보세요!")
 
-### 13주차 — 사용자 추천 + 트렌딩 태그
+### 8주차 — 태그 자동완성 + 검색 (Tag + Search 도메인)
+
+> 기존 5주차에서 이동 (2026-04-08). 백엔드 9주차 Search 도메인 완성 후 연동.
+
+> **백엔드 API 현황 (2026-03-31 기준)**
+>
+> | 엔드포인트 | 백엔드 상태 | 비고 |
+> |---|---|---|
+> | `GET /api/v1/tags/autocomplete?q=` | **구현 완료** | 응답: `[{ tagId, displayName, canonical }]`. 빈 문자열/공백 → 400 |
+> | `GET /api/v1/tags/{id}/related` | **구현 완료** | 응답: `[{ tagId, displayName, canonical, coOccurrenceCount }]`. 존재하지 않는 태그 → 404 (TAG_001) |
+> | `GET /api/v1/tags/trending` | **미구현** | 백엔드 배치 Job + Redis 캐시 필요 |
+> | `GET /api/v1/tags/daily-prompt` | **미구현** | |
+> | `GET /api/v1/search` | **미구현** | 백엔드 9주차 Search 도메인 |
+> | `GET /api/v1/search/autocomplete` | **미구현** | 백엔드 9주차 Search 도메인 |
+>
+> **`types/tag.ts` 동기화 필요 사항:**
+> - `TagSuggestion`: `usageCount` 필드 제거, `displayName`/`canonical` 필드 추가 (백엔드 응답과 불일치)
+> - `TagSuggestion.id`: 백엔드는 `tagId: number` — `string`에서 `number`로 변경 검토
+
+**API + 훅**
+- [ ] `api/tag.ts` 작성:
+  - `autocomplete(query)` → GET `/api/v1/tags/autocomplete?q=` — ✅ 백엔드 구현 완료
+  - `getRelatedTags(tagId)` → GET `/api/v1/tags/{id}/related` — ✅ 백엔드 구현 완료
+  - `getTrending()` → GET `/api/v1/tags/trending` — ❌ 백엔드 미구현
+  - `getDailyPrompt()` → GET `/api/v1/tags/daily-prompt` — ❌ 백엔드 미구현
+- [ ] `api/search.ts` 작성:
+  - `search(params)` → GET `/api/v1/search` (q, type, from, to, tags) — ❌ 백엔드 미구현
+  - `searchAutocomplete(query)` → GET `/api/v1/search/autocomplete?q=` — ❌ 백엔드 미구현
+- [ ] `hooks/useSearch.ts` 작성:
+  - `useSearch(params)` — infinite query
+  - `useSearchAutocomplete(query)` — query (debounce 300ms)
+
+**페이지 구현**
+- [ ] **통합 검색 페이지** (`src/app/(auth)/search/page.tsx`):
+  - 검색바 (입력 중 자동완성 드롭다운)
+  - 탭: 전체 / 일기(Private) / 피드(Public)
+  - 필터 패널: 기간 선택 (date range picker), 태그 필터, 작성자 필터
+  - 검색 결과 카드 목록 (무한 스크롤)
+  - 검색 결과 카드에 **일치 키워드 하이라이팅** (백엔드 highlight 데이터 활용)
+  - 결과 없을 때 빈 상태 UI
+  - 인증 사용자용 CSR 페이지로 유지하되, 공개 SEO 대상 경로와 혼동되지 않도록 그룹 분리
+  - score 동점 시 최신순으로 정렬된 결과를 클라이언트에서 재정렬하지 않음
+- [ ] **검색 결과 카드 컴포넌트** (`components/search/SearchResultCard.tsx`):
+  - 타입 아이콘 (일기/피드 구분)
+  - 제목 (하이라이팅), 본문 미리보기 (하이라이팅), 태그 칩, 작성일
+  - 클릭 시 해당 일기/피드 상세로 이동
+
+### 9주차 — 피드 인터랙션 + 이미지 업로드
+
+> 기존 7~8주차에서 이동 (2026-04-08).
+
+- [ ] **좋아요 낙관적 업데이트 구현**:
+  - 버튼 클릭 즉시 UI 반영 (하트 색상 변경 + 카운트 증가)
+  - 서버 실패 시 자동 롤백
+  - 연타 방지 (debounce)
+- [ ] **댓글 컴포넌트** (`components/feed/CommentList.tsx`):
+  - 댓글 목록 (무한 스크롤)
+  - 댓글 카드: 아바타 + 닉네임 + 내용 + 시간 + 삭제 버튼(본인만)
+  - 댓글 입력창 (하단 고정)
+- [ ] **팔로우/언팔로우 기능**:
+  - `api/social.ts`: `follow(userId)`, `unfollow(userId)`, `getFollowers(userId)`, `getFollowing(userId)`
+  - `hooks/useFollow.ts`: `useFollow()`, `useUnfollow()` mutation
+  - 프로필 페이지에 팔로우 버튼
+- [ ] **사용자 프로필 페이지** (`src/app/(main)/profile/[id]/page.tsx`, SSR):
+- [ ] **사용자 프로필 페이지** (`src/app/(public)/users/[id]/page.tsx`, SSR):
+  - 프로필 이미지, 닉네임, 팔로워/팔로잉 수
+  - 팔로우/언팔로우 버튼
+  - 해당 유저의 공개 게시글 목록
+  - 본인 프로필이면 수정 버튼
+- [ ] **프로필 수정 페이지** (`src/app/(auth)/mypage/edit/page.tsx`):
+  - 프로필 이미지 변경 (S3 Pre-signed URL 연동 후 구현 — 현재 닉네임 변경만 완료)
+  - 닉네임 변경 ✅ 완료
+
+### 10주차 — 팔로우 기능 UI
+
+> 기존 9~10주차에서 이동 (2026-04-08). 백엔드 11주차 Follow 도메인 완성 후 연동.
+> 써클/챌린지 UI는 백엔드와 동일하게 마인드맵 이후(17주차 영역)로 이동.
+> 팔로우 기능은 `GET /api/v1/feeds/following` API에 필요하므로 이 시점에 구현.
+
+- [ ] `api/social.ts` 추가:
+  - `follow(userId)` → POST `/api/v1/users/{id}/follow`
+  - `unfollow(userId)` → DELETE `/api/v1/users/{id}/follow`
+  - `getFollowers(userId, cursor)` → GET `/api/v1/users/{id}/followers`
+  - `getFollowing(userId, cursor)` → GET `/api/v1/users/{id}/following`
+- [ ] `hooks/useFollow.ts` 작성:
+  - `useFollow()` — mutation, 낙관적 업데이트 (팔로워 수 즉시 반영)
+  - `useUnfollow()` — mutation, 낙관적 업데이트
+  - `useFollowers(userId)` — infinite query
+  - `useFollowing(userId)` — infinite query
+- [ ] **팔로우/언팔로우 버튼 컴포넌트** (`components/social/FollowButton.tsx`):
+  - 본인 프로필이면 숨김
+  - 팔로우 중이면 "팔로잉" 표시, hover 시 "언팔로우" 변경
+- [ ] 프로필 페이지에 팔로워/팔로잉 수 + 팔로우 버튼 통합
+
+---
+
+## Phase 4 — 추천 & 리텐션 준비 (11~14주)
+
+### 11~12주차 — 사용자 추천 + 트렌딩 태그
 
 - [ ] `api/social.ts` 추가:
   - `getRecommendedUsers()` → GET `/api/v1/users/recommendations`
@@ -547,7 +558,7 @@
   - 각 태그별 오늘 사용 횟수
   - 태그 클릭 시 해당 태그로 검색
 
-### 14주차 — 리텐션 UI 준비
+### 13~14주차 — 리텐션 UI 준비
 
 - [ ] **스트릭 위젯 컴포넌트** (`components/diary/StreakWidget.tsx`):
   - 불꽃 아이콘 + 연속 기록 일수 표시
