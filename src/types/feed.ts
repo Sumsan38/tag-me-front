@@ -3,76 +3,101 @@
  *
  * Feed 도메인 타입 정의.
  *
- * - Feed: 공개 게시글 엔티티 (좋아요, 댓글 집계 포함)
- * - CreateFeedRequest: 게시글 작성 요청 바디
- * - Comment: 댓글 엔티티
- * - CreateCommentRequest: 댓글 작성 요청 바디
- * - Like: 좋아요 기록
- *
- * 이미지는 S3 Pre-signed URL로 업로드 후 CloudFront CDN URL을 저장한다.
- * 단일 이미지 최대 10MB, 게시글당 최대 10장.
+ * 백엔드 API 스펙 기준:
+ *   - POST   /api/v1/feeds                            → CreateFeedRequest / CreateFeedResponse
+ *   - GET    /api/v1/feeds                             → FeedListResponse (cursor 기반)
+ *   - GET    /api/v1/feeds/following                   → FeedListResponse (cursor 기반)
+ *   - GET    /api/v1/feeds/{id}                        → FeedResponse
+ *   - PUT    /api/v1/feeds/{id}                        → UpdateFeedRequest (전체 교체)
+ *   - DELETE /api/v1/feeds/{id}                        → soft delete
+ *   - POST   /api/v1/feeds/{id}/likes                  → 좋아요
+ *   - DELETE /api/v1/feeds/{id}/likes                  → 좋아요 취소
+ *   - GET    /api/v1/feeds/{id}/comments               → CommentListResponse (cursor 기반)
+ *   - POST   /api/v1/feeds/{id}/comments               → CreateCommentResponse
+ *   - DELETE /api/v1/feeds/{feedId}/comments/{commentId} → 댓글 삭제
  */
 
 // ---------------------------------------------------------------------------
-// 게시글
+// 태그 정보 (FeedResponse 내부)
 // ---------------------------------------------------------------------------
 
-/**
- * 공개 게시글.
- * isLiked는 현재 인증된 사용자의 좋아요 여부이다. 비인증 상태에서는 항상 false.
- * isPublic이 false인 게시글은 본인만 조회 가능하다.
- * images는 CloudFront CDN URL 목록이다.
- */
-export interface Feed {
-  id: string;
-  content: string;
-  images: string[];          // CloudFront CDN URL 목록
-  tags: string[];
-  authorId: string;
-  authorNickname: string;
-  authorProfileImage: string | null;
-  likeCount: number;
-  commentCount: number;
-  isLiked: boolean;          // 현재 사용자의 좋아요 여부
-  isPublic: boolean;
-  createdAt: string;         // ISO 8601
+export interface FeedTag {
+  id: number;
+  name: string;
 }
+
+// ---------------------------------------------------------------------------
+// 게시글 응답
+// ---------------------------------------------------------------------------
+
+export interface FeedResponse {
+  id: number;
+  userId: number;
+  content: string;
+  isPublic: boolean;
+  tags: FeedTag[];
+  imageUrls: string[];
+  likeCount: number;
+  likedByMe: boolean;
+  commentCount: number;
+  createdAt: string; // ISO 8601
+  updatedAt: string; // ISO 8601
+}
+
+export interface FeedListResponse {
+  items: FeedResponse[];
+  nextCursor: number | null;
+  hasNext: boolean;
+}
+
+export interface CreateFeedResponse {
+  feedId: number;
+}
+
+// ---------------------------------------------------------------------------
+// 게시글 요청
+// ---------------------------------------------------------------------------
 
 export interface CreateFeedRequest {
-  content: string;
-  imageUrls: string[];       // CloudFront CDN URL 목록 (S3 업로드 완료 후 전달)
-  tags: string[];
+  content: string; // 1~10,000자
   isPublic: boolean;
+  tagNames?: string[]; // 최대 10개
+  imageUrls?: string[]; // 최대 10장
+}
+
+/** PUT 전체 교체 방식 — 모든 필드 필수. */
+export interface UpdateFeedRequest {
+  content: string; // 1~10,000자
+  isPublic: boolean;
+  tagNames?: string[]; // 최대 10개
+  imageUrls?: string[]; // 최대 10장
 }
 
 // ---------------------------------------------------------------------------
-// 댓글
+// 댓글 응답
 // ---------------------------------------------------------------------------
 
-export interface Comment {
-  id: string;
-  feedId: string;
+export interface CommentResponse {
+  id: number;
+  userId: number;
   content: string;
-  authorId: string;
-  authorNickname: string;
-  authorProfileImage: string | null;
   createdAt: string; // ISO 8601
 }
+
+export interface CommentListResponse {
+  items: CommentResponse[];
+  nextCursor: number | null;
+  hasNext: boolean;
+}
+
+export interface CreateCommentResponse {
+  commentId: number;
+}
+
+// ---------------------------------------------------------------------------
+// 댓글 요청
+// ---------------------------------------------------------------------------
 
 export interface CreateCommentRequest {
-  content: string;
-}
-
-// ---------------------------------------------------------------------------
-// 좋아요
-// ---------------------------------------------------------------------------
-
-/**
- * 좋아요 기록.
- * 좋아요 토글 낙관적 업데이트 롤백 시 이전 상태를 복원하는 데 사용한다.
- */
-export interface Like {
-  userId: string;
-  feedId: string;
-  createdAt: string; // ISO 8601
+  content: string; // 1~1,000자
 }
