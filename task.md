@@ -448,6 +448,49 @@
   - 우측 또는 하단에 `TagDetailPanel` (사이드 패널)
   - 태그 없을 때 빈 상태 UI ("일기를 쓰거나 피드에서 좋아요를 눌러보세요!")
 
+### 7.5주차 — 대댓글 + 댓글 좋아요 UI
+
+> 백엔드 8.5주차 완성 후 진행. 대댓글/댓글 좋아요 API를 프론트에서 연동한다.
+
+**설계 결정 사항**
+- 대댓글 깊이: 1단계만 (대대댓글 불가)
+- 댓글 목록에서 `replyCount`만 표시 + "대댓글 N개 보기" 클릭 시 lazy load
+- 부모 댓글 삭제 시: "삭제된 댓글입니다" 표시, 대댓글은 유지
+- 대댓글 정렬: 오래된 순 (대화 흐름)
+- `CommentResponse`에 `parentId`, `replyCount`, `likeCount`, `likedByMe` 포함
+
+**API 함수 (`api/feed.ts` 확장)**
+- [ ] `getReplies(feedId, commentId, cursor)` → `GET /api/v1/feeds/{feedId}/comments/{commentId}/replies`
+- [ ] `likeComment(feedId, commentId)` → `POST /api/v1/feeds/{feedId}/comments/{commentId}/likes`
+- [ ] `unlikeComment(feedId, commentId)` → `DELETE /api/v1/feeds/{feedId}/comments/{commentId}/likes`
+- [ ] `createComment` 요청에 `parentCommentId` 옵션 필드 추가
+
+**타입 정의 (`types/feed.ts` 확장)**
+- [ ] `CommentResponse`에 `parentId`, `replyCount`, `likeCount`, `likedByMe` 필드 추가
+- [ ] `CreateCommentRequest`에 `parentCommentId?` 필드 추가
+
+**React Query 훅 (`hooks/useFeed.ts` 확장)**
+- [ ] `useReplies(feedId, commentId)` — infinite query (오래된 순)
+- [ ] `useCreateReply()` — mutation (대댓글 작성)
+- [ ] `useLikeComment()` — mutation + optimistic update (하트 토글 + 좋아요 수)
+- [ ] `useUnlikeComment()` — mutation + optimistic update
+
+**컴포넌트**
+- [ ] `CommentList.tsx` 수정: 각 댓글에 `replyCount` 표시 + "대댓글 N개 보기" 토글 버튼
+- [ ] `ReplyList.tsx` 신규: 대댓글 목록 (lazy load, 오래된 순, 무한 스크롤)
+- [ ] `CommentItem.tsx` 수정: 댓글 좋아요 버튼(하트 아이콘 + 좋아요 수), "답글 달기" 버튼
+- [ ] 삭제된 부모 댓글 UI: "삭제된 댓글입니다" 회색 표시 + 대댓글은 정상 노출
+- [ ] 대댓글 작성 입력: "답글 달기" 클릭 시 해당 댓글 하단에 입력창 노출
+
+**알림 타입 확장**
+- [ ] `types/notification.ts`에 `REPLY`, `COMMENT_LIKE` 알림 타입 추가
+- [ ] 알림 목록에서 대댓글/댓글 좋아요 알림 렌더링 처리
+
+**테스트**
+- [ ] API 함수 테스트: getReplies, likeComment, unlikeComment
+- [ ] 훅 테스트: useReplies, useLikeComment (optimistic update 포함)
+- [ ] 컴포넌트 테스트: 대댓글 토글, 댓글 좋아요 UI, 삭제된 부모 댓글 표시
+
 ### 8주차 — 태그 자동완성 + 검색 (Tag + Search 도메인)
 
 > 기존 5주차에서 이동 (2026-04-08). 백엔드 9주차 Search 도메인 완성 후 연동.

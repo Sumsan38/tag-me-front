@@ -65,11 +65,13 @@
 | 피드 조회 | 팔로우 기반 / 전체 공개 피드 |
 | 좋아요 | 게시글 좋아요 시 **해당 게시글의 태그가 내 마인드맵에 자동 기록** |
 | 댓글 | 댓글 작성 시 **해당 게시글의 태그가 내 마인드맵에 자동 기록** |
+| 대댓글 | 1단계 대댓글 지원 (댓글에 답글). 대댓글도 피드 태그 기준 마인드맵 기록 |
+| 댓글 좋아요 | 댓글 좋아요 시 **해당 게시글의 태그가 내 마인드맵에 자동 기록** (source_type='comment_like') |
 | **✍️ 일기 완성 후 피드 추천** | 일기 작성 완료 시 작성한 태그와 일치하는 공개 게시글을 즉시 추천 ("오늘 #여행 을 기록했어요 — 비슷한 이야기를 나눈 사람들") |
 | **💬 태그 기반 익명 공감 피드** | 동일 태그를 기록한 사람 수 표시 ("오늘 #번아웃을 기록한 사람이 47명") |
 | **📊 월간 리포트 카드** | 월말 TOP 태그·활동 통계를 인포그래픽으로 생성, SNS 공유 기능 포함 |
 
-> **설계 원칙**: 좋아요·댓글로 수집된 태그는 `interaction_source = 'like' | 'comment'`로 구분 저장한다. 마인드맵에서는 직접 작성한 태그와 시각적으로 구별(색상·투명도 차등)하여 출처를 확인할 수 있게 한다.
+> **설계 원칙**: 좋아요·댓글·대댓글·댓글 좋아요로 수집된 태그는 `interaction_source = 'like' | 'comment' | 'comment_like'`로 구분 저장한다. 마인드맵에서는 직접 작성한 태그와 시각적으로 구별(색상·투명도 차등)하여 출처를 확인할 수 있게 한다.
 
 > **일기 완성 후 피드 추천 설계**
 > - 트리거: 일기 저장 완료(`DiaryCreatedEvent`) 시 해당 일기의 태그 목록을 추출
@@ -281,6 +283,8 @@ Identity 구현의 해석 차이를 줄이기 위해 계정 정책을 아래와 
 |------|--------------|--------|-------------|
 | `LIKE` | `LikeAddedEvent` | 피드 작성자 | "{닉네임}님이 게시글에 좋아요를 눌렀습니다" |
 | `COMMENT` | `CommentAddedEvent` | 피드 작성자 | "{닉네임}님이 게시글에 댓글을 남겼습니다" |
+| `REPLY` | `CommentAddedEvent` (parentId != null) | 부모 댓글 작성자 | "{닉네임}님이 댓글에 대댓글을 남겼습니다" |
+| `COMMENT_LIKE` | `CommentLikeAddedEvent` | 댓글 작성자 | "{닉네임}님이 댓글에 좋아요를 눌렀습니다" |
 | `FOLLOW` | Follow 생성 | 팔로우 대상 | "{닉네임}님이 나를 팔로우했습니다" |
 
 #### 소셜 알림 정책 상세
@@ -291,7 +295,7 @@ Identity 구현의 해석 차이를 줄이기 위해 계정 정책을 아래와 
 | **집계 방식** | **Phase 1: 건별 즉시 발송** (DAU 1,000 규모에 적합). **Phase 2 전환 예정**: 미읽은 동일 피드 알림이 있으면 payload 갱신으로 집계 ("홍길동님 외 N명"), 읽은 뒤 새 알림 생성 |
 | **좋아요 취소 → 재좋아요** | 취소 시 미읽은 LIKE 알림 소프트 삭제. 재좋아요 시 새 알림 생성 |
 | **댓글 여러 개** | 같은 유저가 같은 피드에 댓글 여러 개 → 건별 알림 (내용이 다르므로 묶지 않음) |
-| **미읽은 알림 소프트 삭제** | 좋아요 취소 → 미읽은 LIKE 알림 삭제, 댓글 삭제 → 미읽은 COMMENT 알림 삭제, 언팔로우 → 미읽은 FOLLOW 알림 삭제, 피드 삭제 → 해당 피드의 모든 미읽은 LIKE/COMMENT 알림 삭제 |
+| **미읽은 알림 소프트 삭제** | 좋아요 취소 → 미읽은 LIKE 알림 삭제, 댓글 좋아요 취소 → 미읽은 COMMENT_LIKE 알림 삭제, 댓글 삭제 → 미읽은 COMMENT 알림 삭제, 부모 댓글 삭제 → 미읽은 REPLY 알림 삭제 (대댓글은 유지, "삭제된 댓글입니다" 표시), 언팔로우 → 미읽은 FOLLOW 알림 삭제, 피드 삭제 → 해당 피드의 모든 미읽은 LIKE/COMMENT/REPLY/COMMENT_LIKE 알림 삭제 |
 | **이미 읽은 알림** | 읽은 뒤 원본 행위가 취소되어도 알림 유지 (히스토리 보존) |
 | **payload 스냅샷** | `actorNickname`은 알림 생성 시점 스냅샷 저장 (JOIN 비용 제거). 닉네임 변경 시 과거 알림은 옛날 값 유지 |
 
@@ -456,7 +460,7 @@ Next.js를 단순 React 래퍼가 아닌 렌더링 전략을 기능별로 나눠
 |----------------|------|---------------|
 | **Identity** | 회원가입, 로그인, 인증 | `User` |
 | **Diary** | 개인 일기 CRUD, 태그 기록 | `Diary`, `DiaryTag` |
-| **Feed** | 공개 게시글, 좋아요, 댓글 | `Feed`, `Like`, `Comment` |
+| **Feed** | 공개 게시글, 좋아요, 댓글, 대댓글, 댓글 좋아요 | `Feed`, `Like`, `Comment`, `CommentLike` |
 | **Tag** | 태그 메타데이터, 자동완성, 연관 태그 | `Tag`, `TagCoOccurrence` |
 | **Mindmap** | 태그 집계, 마인드맵 시각화 데이터 | `MindmapSnapshot` |
 | **Social** | 써클, 챌린지, 팔로우, 유저 추천, 실시간 채팅 | `Circle`, `CircleTag`, `Challenge`, `ChallengeTag`, `ChatRoom`, `ChatMessage` |
@@ -985,8 +989,8 @@ main 머지 → ECR 푸시 → EKS Rolling Update
 | user_id | BIGINT FK → users | 기록한 주체 |
 | tag_id_a | BIGINT FK → tags | 태그 쌍 (a < b 정렬로 중복 방지) |
 | tag_id_b | BIGINT FK → tags | |
-| source_type | ENUM | `'diary'` \| `'feed'` \| `'like'` \| `'comment'` |
-| source_id | BIGINT | diary_id 또는 feed_id |
+| source_type | ENUM | `'diary'` \| `'feed'` \| `'like'` \| `'comment'` \| `'comment_like'` |
+| source_id | BIGINT | diary_id, feed_id, 또는 comment_id |
 | occurred_at | DATE | 공동 출현 날짜 (기간 필터 기준) |
 | is_deleted | BOOLEAN | 태그 제거 시 소프트 삭제 |
 | created_at | TIMESTAMP | |
@@ -1035,8 +1039,8 @@ main 머지 → ECR 푸시 → EKS Rolling Update
 | id | BIGINT PK | |
 | user_id | BIGINT FK → users | 태그를 접한 주체 |
 | tag_id | BIGINT FK → tags | |
-| source_type | ENUM | `'diary'` \| `'feed'` \| `'like'` \| `'comment'` |
-| source_id | BIGINT | source_type에 따라 diary_id 또는 feed_id |
+| source_type | ENUM | `'diary'` \| `'feed'` \| `'like'` \| `'comment'` \| `'comment_like'` |
+| source_id | BIGINT | source_type에 따라 diary_id, feed_id, 또는 comment_id |
 | occurred_at | DATE | 발생 날짜 (기간 필터 기준) |
 | is_deleted | BOOLEAN | 좋아요 취소·댓글 삭제·일기 삭제 시 소프트 삭제 |
 | created_at | TIMESTAMP | |
@@ -1065,8 +1069,8 @@ main 머지 → ECR 푸시 → EKS Rolling Update
 >
 > **primarySource 결정 규칙 (애플리케이션 레이어)**
 >
-> `primarySource`는 DB 컬럼이 아니라 노드 쿼리 결과(`diary_count`, `feed_count`, `like_count`, `comment_count`)를 기반으로 응답 생성 시점에 계산하는 파생값이다.
-> 결정 기준: count가 가장 높은 source_type을 채택. 동점 시 `diary > feed > comment > like` 우선순위를 따른다.
+> `primarySource`는 DB 컬럼이 아니라 노드 쿼리 결과(`diary_count`, `feed_count`, `like_count`, `comment_count`, `comment_like_count`)를 기반으로 응답 생성 시점에 계산하는 파생값이다.
+> 결정 기준: count가 가장 높은 source_type을 채택. 동점 시 `diary > feed > comment > like > comment_like` 우선순위를 따른다.
 
 ---
 
