@@ -340,7 +340,7 @@
 > **순서 변경 (2026-04-08)**: Diary + Feed 데이터만으로 마인드맵 v0.1을 먼저 그리기 위해 Feed → Mindmap → Search/Follow 순서로 재배치. 기존 5주차 Search와 6주차 Feed의 순서를 교체.
 
 **API + 훅**
-- [ ] `api/feed.ts` 작성:
+- [x] `api/feed.ts` 작성:
   - `createFeed(data)` → POST `/api/v1/feeds`
   - `getFeeds(cursor)` → GET `/api/v1/feeds` (전체 공개)
   - `getFollowingFeeds(cursor)` → GET `/api/v1/feeds/following`
@@ -351,7 +351,7 @@
   - `getComments(feedId, cursor)` → GET `/api/v1/feeds/{id}/comments`
   - `createComment(feedId, content)` → POST `/api/v1/feeds/{id}/comments`
   - `deleteComment(feedId, commentId)` → DELETE `/api/v1/feeds/{feedId}/comments/{commentId}`
-- [ ] `hooks/useFeed.ts` 작성:
+- [x] `hooks/useFeed.ts` 작성:
   - `useFeeds()` — infinite query (전체 공개)
   - `useFollowingFeeds()` — infinite query
   - `useFeed(id)` — query
@@ -363,24 +363,21 @@
   - `useDeleteComment()` — mutation
 
 **페이지 구현 (SSR — 공개 피드)**
-- [ ] **피드 메인 페이지** (`src/app/(public)/feed/page.tsx`):
+- [x] **피드 메인 페이지** (`src/app/(public)/feed/page.tsx`):
   - 탭: 전체 / 팔로잉
   - 무한 스크롤 피드
   - 게시글 작성 진입 버튼 (플로팅 버튼)
-- [ ] **게시글 작성 페이지** (`src/app/(auth)/feed/write/page.tsx`):
+- [x] **게시글 작성 페이지** (`src/app/(public)/feed/write/page.tsx`):
   - 본문 입력 (텍스트, 몇 줄)
-  - 이미지 업로드 (최대 10장, 드래그앤드롭 지원):
-    - `next/image` 미리보기
-    - S3 Pre-signed URL로 직접 업로드
-    - 업로드 진행률 표시
+  - 이미지 업로드: ❌ S3 Pre-signed URL 업로드 미구현 (이미지 업로드 유틸 섹션 참고)
   - `TagInput` 컴포넌트로 태그 추가
   - 공개/비공개 토글
-- [ ] **게시글 상세 페이지** (`src/app/(public)/feed/[id]/page.tsx`):
+- [x] **게시글 상세 페이지** (`src/app/(public)/feed/[id]/page.tsx`):
   - 본문, 이미지 갤러리 (스와이프), 태그, 작성자 프로필, 작성일
   - 좋아요 버튼 + 카운트 (하트 애니메이션)
   - 댓글 목록 + 댓글 입력
-  - 삭제 버튼 (본인 게시글만)
-- [ ] **피드 카드 컴포넌트** (`components/feed/FeedCard.tsx`):
+  - 삭제/수정 버튼 (본인 게시글만)
+- [x] **피드 카드 컴포넌트** (`components/feed/FeedCard.tsx`):
   - 작성자 아바타 + 닉네임 + 작성 시간 (relative time: "3시간 전")
   - 본문 미리보기 (3줄, 더보기)
   - 이미지 썸네일 (1장이면 전체, 2장이면 2열, 3장 이상이면 그리드)
