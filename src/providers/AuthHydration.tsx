@@ -22,7 +22,7 @@
 
 import { useEffect, useRef, type ReactNode } from 'react';
 import { useAuthStore } from '@/stores/authStore';
-import { silentRefresh } from '@/api/auth';
+import { silentRefresh, getCurrentUser } from '@/api/auth';
 
 export default function AuthHydration({ children }: { children: ReactNode }) {
   const restoreAuth = useAuthStore((s) => s.restoreAuth);
@@ -47,6 +47,17 @@ export default function AuthHydration({ children }: { children: ReactNode }) {
         try {
           const result = await silentRefresh();
           useAuthStore.getState().setAccessToken(result.accessToken);
+
+          // accessToken만으로는 user 정보를 알 수 없으므로 프로필을 함께 복원한다.
+          // user가 null이면 isOwner 등 소유자 판단 로직이 항상 false가 된다.
+          const profile = await getCurrentUser();
+          useAuthStore.getState().setUser({
+            id: profile.userId,
+            email: profile.email,
+            nickname: profile.nickname,
+            profileImage: profile.profileImage,
+            provider: null,
+          });
         } catch {
           // 쿠키가 없거나 만료 → 비인증 상태로 진행
         }
