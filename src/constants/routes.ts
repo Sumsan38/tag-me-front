@@ -37,6 +37,7 @@ export const ROUTES = {
 
   // Auth
   FEED_WRITE: '/feed/write',
+  FEED_EDIT: (id: string) => `/feed/${id}/edit`,
   DIARY: '/diary',
   DIARY_WRITE: '/diary/write',
   DIARY_DETAIL: (id: string) => `/diary/${id}`,

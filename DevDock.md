@@ -68,6 +68,8 @@
 | **✍️ 일기 완성 후 피드 추천** | 일기 작성 완료 시 작성한 태그와 일치하는 공개 게시글을 즉시 추천 ("오늘 #여행 을 기록했어요 — 비슷한 이야기를 나눈 사람들") |
 | **💬 태그 기반 익명 공감 피드** | 동일 태그를 기록한 사람 수 표시 ("오늘 #번아웃을 기록한 사람이 47명") |
 | **📊 월간 리포트 카드** | 월말 TOP 태그·활동 통계를 인포그래픽으로 생성, SNS 공유 기능 포함 |
+| **📈 오늘의 트렌딩** | 현재 시간대 가장 많이 사용된 태그 상위 N개 표시 — 피드 사이드바 위젯 |
+| **👥 추천 유저** | 공통 태그 기반 팔로우 추천 유저 카드 — 피드 사이드바 위젯 |
 
 > **설계 원칙**: 좋아요·댓글로 수집된 태그는 `interaction_source = 'like' | 'comment'`로 구분 저장한다. 마인드맵에서는 직접 작성한 태그와 시각적으로 구별(색상·투명도 차등)하여 출처를 확인할 수 있게 한다.
 
@@ -281,6 +283,8 @@ Identity 구현의 해석 차이를 줄이기 위해 계정 정책을 아래와 
 |------|--------------|--------|-------------|
 | `LIKE` | `LikeAddedEvent` | 피드 작성자 | "{닉네임}님이 게시글에 좋아요를 눌렀습니다" |
 | `COMMENT` | `CommentAddedEvent` | 피드 작성자 | "{닉네임}님이 게시글에 댓글을 남겼습니다" |
+| `REPLY` | `CommentAddedEvent` (parentId != null) | 부모 댓글 작성자 | "{닉네임}님이 댓글에 대댓글을 남겼습니다" |
+| `COMMENT_LIKE` | `CommentLikeAddedEvent` | 댓글 작성자 | "{닉네임}님이 댓글에 좋아요를 눌렀습니다" |
 | `FOLLOW` | Follow 생성 | 팔로우 대상 | "{닉네임}님이 나를 팔로우했습니다" |
 
 #### 소셜 알림 정책 상세
@@ -291,7 +295,7 @@ Identity 구현의 해석 차이를 줄이기 위해 계정 정책을 아래와 
 | **집계 방식** | **Phase 1: 건별 즉시 발송** (DAU 1,000 규모에 적합). **Phase 2 전환 예정**: 미읽은 동일 피드 알림이 있으면 payload 갱신으로 집계 ("홍길동님 외 N명"), 읽은 뒤 새 알림 생성 |
 | **좋아요 취소 → 재좋아요** | 취소 시 미읽은 LIKE 알림 소프트 삭제. 재좋아요 시 새 알림 생성 |
 | **댓글 여러 개** | 같은 유저가 같은 피드에 댓글 여러 개 → 건별 알림 (내용이 다르므로 묶지 않음) |
-| **미읽은 알림 소프트 삭제** | 좋아요 취소 → 미읽은 LIKE 알림 삭제, 댓글 삭제 → 미읽은 COMMENT 알림 삭제, 언팔로우 → 미읽은 FOLLOW 알림 삭제, 피드 삭제 → 해당 피드의 모든 미읽은 LIKE/COMMENT 알림 삭제 |
+| **미읽은 알림 소프트 삭제** | 좋아요 취소 → 미읽은 LIKE 알림 삭제, 댓글 좋아요 취소 → 미읽은 COMMENT_LIKE 알림 삭제, 댓글 삭제 → 미읽은 COMMENT 알림 삭제, 부모 댓글 삭제 → 미읽은 REPLY 알림 삭제 (대댓글 유지), 언팔로우 → 미읽은 FOLLOW 알림 삭제, 피드 삭제 → 해당 피드의 모든 미읽은 LIKE/COMMENT/REPLY/COMMENT_LIKE 알림 삭제 |
 | **이미 읽은 알림** | 읽은 뒤 원본 행위가 취소되어도 알림 유지 (히스토리 보존) |
 | **payload 스냅샷** | `actorNickname`은 알림 생성 시점 스냅샷 저장 (JOIN 비용 제거). 닉네임 변경 시 과거 알림은 옛날 값 유지 |
 
@@ -456,7 +460,7 @@ Next.js를 단순 React 래퍼가 아닌 렌더링 전략을 기능별로 나눠
 |----------------|------|---------------|
 | **Identity** | 회원가입, 로그인, 인증 | `User` |
 | **Diary** | 개인 일기 CRUD, 태그 기록 | `Diary`, `DiaryTag` |
-| **Feed** | 공개 게시글, 좋아요, 댓글 | `Feed`, `Like`, `Comment` |
+| **Feed** | 공개 게시글, 좋아요, 댓글, 대댓글, 댓글 좋아요 | `Feed`, `Like`, `Comment`, `CommentLike` |
 | **Tag** | 태그 메타데이터, 자동완성, 연관 태그 | `Tag`, `TagCoOccurrence` |
 | **Mindmap** | 태그 집계, 마인드맵 시각화 데이터 | `MindmapSnapshot` |
 | **Social** | 써클, 챌린지, 팔로우, 유저 추천, 실시간 채팅 | `Circle`, `CircleTag`, `Challenge`, `ChallengeTag`, `ChatRoom`, `ChatMessage` |
@@ -985,8 +989,8 @@ main 머지 → ECR 푸시 → EKS Rolling Update
 | user_id | BIGINT FK → users | 기록한 주체 |
 | tag_id_a | BIGINT FK → tags | 태그 쌍 (a < b 정렬로 중복 방지) |
 | tag_id_b | BIGINT FK → tags | |
-| source_type | ENUM | `'diary'` \| `'feed'` \| `'like'` \| `'comment'` |
-| source_id | BIGINT | diary_id 또는 feed_id |
+| source_type | ENUM | `'diary'` \| `'feed'` \| `'like'` \| `'comment'` \| `'comment_like'` |
+| source_id | BIGINT | diary_id 또는 feed_id 또는 comment_id |
 | occurred_at | DATE | 공동 출현 날짜 (기간 필터 기준) |
 | is_deleted | BOOLEAN | 태그 제거 시 소프트 삭제 |
 | created_at | TIMESTAMP | |
@@ -1035,8 +1039,8 @@ main 머지 → ECR 푸시 → EKS Rolling Update
 | id | BIGINT PK | |
 | user_id | BIGINT FK → users | 태그를 접한 주체 |
 | tag_id | BIGINT FK → tags | |
-| source_type | ENUM | `'diary'` \| `'feed'` \| `'like'` \| `'comment'` |
-| source_id | BIGINT | source_type에 따라 diary_id 또는 feed_id |
+| source_type | ENUM | `'diary'` \| `'feed'` \| `'like'` \| `'comment'` \| `'comment_like'` |
+| source_id | BIGINT | source_type에 따라 diary_id, feed_id, 또는 comment_id |
 | occurred_at | DATE | 발생 날짜 (기간 필터 기준) |
 | is_deleted | BOOLEAN | 좋아요 취소·댓글 삭제·일기 삭제 시 소프트 삭제 |
 | created_at | TIMESTAMP | |
@@ -1065,8 +1069,8 @@ main 머지 → ECR 푸시 → EKS Rolling Update
 >
 > **primarySource 결정 규칙 (애플리케이션 레이어)**
 >
-> `primarySource`는 DB 컬럼이 아니라 노드 쿼리 결과(`diary_count`, `feed_count`, `like_count`, `comment_count`)를 기반으로 응답 생성 시점에 계산하는 파생값이다.
-> 결정 기준: count가 가장 높은 source_type을 채택. 동점 시 `diary > feed > comment > like` 우선순위를 따른다.
+> `primarySource`는 DB 컬럼이 아니라 노드 쿼리 결과(`diary_count`, `feed_count`, `like_count`, `comment_count`, `comment_like_count`)를 기반으로 응답 생성 시점에 계산하는 파생값이다.
+> 결정 기준: count가 가장 높은 source_type을 채택. 동점 시 `diary > feed > comment > like > comment_like` 우선순위를 따른다.
 
 ---
 
@@ -1738,6 +1742,103 @@ class DefaultDiaryServiceTest extends IntegrationTestSupport {
 - **모바일 앱 (React Native)**: 스트릭·푸시 알림 효과 극대화를 위한 앱 확장
 - **월간 리포트 고도화**: Spotify Wrapped 수준의 연간 리포트 제공
 - **멀티 페르소나 (계정 전환)**: X(트위터)처럼 하나의 앱 로그인 세션에서 여러 계정을 등록하고 마이페이지에서 즉시 전환할 수 있는 기능. 서로 다른 관심사나 목적(예: 일상용·운동용·독서용)에 따라 계정을 분리 운영하고 싶은 사용자를 위해 지원 예정.
+
+---
+
+## 11. 사이드바 위젯 API 설계 (선행 개발)
+
+> 피드 사이드바에 노출되는 세 위젯의 백엔드 API 스펙이다.
+> 프론트엔드가 UI를 선구현하였으며, 백엔드 API 완성 전까지 목업 데이터로 동작한다.
+
+### 11.1 오늘의 트렌딩 `GET /api/v1/tags/trending`
+
+**설명**: 현재 시간대에 가장 많이 사용된 태그를 내림차순으로 반환한다.
+
+**인증**: 불필요 (비로그인 허용)
+
+**Query Parameters**
+
+| 파라미터 | 타입 | 기본값 | 설명 |
+|---------|------|--------|------|
+| `limit` | int | 20 | 반환할 태그 수 (최대 50) |
+
+**데이터 소스**: Redis Sorted Set `tag:trending:hourly` (TTL 1시간). Cold start 시 `user_tag_interactions` DB 폴백.
+
+**집계 트리거**: `DiaryCreatedEvent`, `FeedCreatedEvent` 발생 시 `ZINCRBY tag:trending:hourly {tagName} 1`
+
+**Response**
+```json
+{
+  "success": true,
+  "data": [
+    { "tagName": "여행", "displayName": "여행", "count": 142 },
+    { "tagName": "일상", "displayName": "일상", "count": 98 }
+  ]
+}
+```
+
+---
+
+### 11.2 추천 유저 `GET /api/v1/users/recommendations`
+
+**설명**: 공통 태그 수 기반으로 팔로우를 추천할 유저 목록을 반환한다.
+
+**인증**: 선택 (비로그인 시 활동 기반 추천으로 대체)
+
+**Query Parameters**
+
+| 파라미터 | 타입 | 기본값 | 설명 |
+|---------|------|--------|------|
+| `limit` | int | 5 | 반환할 유저 수 (최대 20) |
+
+**로직**
+
+| 상태 | 쿼리 |
+|------|------|
+| 로그인 | `user_tag_interactions`에서 본인과 공통 태그 수가 많은 유저 상위 N명. 본인·이미 팔로우한 유저·탈퇴 유저 제외 |
+| 비로그인 | 최근 7일 내 활동(`user_tag_interactions.created_at`) 횟수 기준 상위 N명 |
+
+**Response**
+```json
+{
+  "success": true,
+  "data": [
+    { "userId": 2, "nickname": "냐냥", "commonTagCount": 5, "isFollowing": false },
+    { "userId": 1, "nickname": "Test_som", "commonTagCount": 3, "isFollowing": false }
+  ]
+}
+```
+
+---
+
+### 11.3 익명 공감 `GET /api/v1/tags/anonymous-sympathy`
+
+**설명**: "오늘 #[태그]를 기록한 사람이 N명" 형태의 익명 집계 데이터를 반환한다. 개별 사용자는 식별 불가.
+
+**인증**: 선택 (로그인 시 본인이 오늘 사용한 태그 기준, 비로그인 시 오늘 상위 태그 기준)
+
+**Query Parameters**
+
+| 파라미터 | 타입 | 기본값 | 설명 |
+|---------|------|--------|------|
+| `limit` | int | 5 | 반환할 태그 수 (최대 20) |
+
+**데이터 소스**: Redis Sorted Set `tag:daily:{yyyy-MM-dd}` (TTL 48시간)
+
+**집계 트리거**: `DiaryCreatedEvent`, `FeedCreatedEvent` 발생 시 `ZINCRBY tag:daily:{오늘날짜} {tagName} 1`
+
+**익명성 보장**: 응답에 userId 또는 개인 식별 정보 미포함. count는 전체 사용자 기준 집계.
+
+**Response**
+```json
+{
+  "success": true,
+  "data": [
+    { "tagName": "번아웃", "displayName": "번아웃", "count": 47 },
+    { "tagName": "여행", "displayName": "여행", "count": 31 }
+  ]
+}
+```
 
 ---
 

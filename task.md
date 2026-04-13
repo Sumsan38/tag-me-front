@@ -340,7 +340,7 @@
 > **순서 변경 (2026-04-08)**: Diary + Feed 데이터만으로 마인드맵 v0.1을 먼저 그리기 위해 Feed → Mindmap → Search/Follow 순서로 재배치. 기존 5주차 Search와 6주차 Feed의 순서를 교체.
 
 **API + 훅**
-- [ ] `api/feed.ts` 작성:
+- [x] `api/feed.ts` 작성:
   - `createFeed(data)` → POST `/api/v1/feeds`
   - `getFeeds(cursor)` → GET `/api/v1/feeds` (전체 공개)
   - `getFollowingFeeds(cursor)` → GET `/api/v1/feeds/following`
@@ -351,7 +351,7 @@
   - `getComments(feedId, cursor)` → GET `/api/v1/feeds/{id}/comments`
   - `createComment(feedId, content)` → POST `/api/v1/feeds/{id}/comments`
   - `deleteComment(feedId, commentId)` → DELETE `/api/v1/feeds/{feedId}/comments/{commentId}`
-- [ ] `hooks/useFeed.ts` 작성:
+- [x] `hooks/useFeed.ts` 작성:
   - `useFeeds()` — infinite query (전체 공개)
   - `useFollowingFeeds()` — infinite query
   - `useFeed(id)` — query
@@ -363,24 +363,21 @@
   - `useDeleteComment()` — mutation
 
 **페이지 구현 (SSR — 공개 피드)**
-- [ ] **피드 메인 페이지** (`src/app/(public)/feed/page.tsx`):
+- [x] **피드 메인 페이지** (`src/app/(public)/feed/page.tsx`):
   - 탭: 전체 / 팔로잉
   - 무한 스크롤 피드
   - 게시글 작성 진입 버튼 (플로팅 버튼)
-- [ ] **게시글 작성 페이지** (`src/app/(auth)/feed/write/page.tsx`):
+- [x] **게시글 작성 페이지** (`src/app/(public)/feed/write/page.tsx`):
   - 본문 입력 (텍스트, 몇 줄)
-  - 이미지 업로드 (최대 10장, 드래그앤드롭 지원):
-    - `next/image` 미리보기
-    - S3 Pre-signed URL로 직접 업로드
-    - 업로드 진행률 표시
+  - 이미지 업로드: ❌ S3 Pre-signed URL 업로드 미구현 (이미지 업로드 유틸 섹션 참고)
   - `TagInput` 컴포넌트로 태그 추가
   - 공개/비공개 토글
-- [ ] **게시글 상세 페이지** (`src/app/(public)/feed/[id]/page.tsx`):
+- [x] **게시글 상세 페이지** (`src/app/(public)/feed/[id]/page.tsx`):
   - 본문, 이미지 갤러리 (스와이프), 태그, 작성자 프로필, 작성일
   - 좋아요 버튼 + 카운트 (하트 애니메이션)
   - 댓글 목록 + 댓글 입력
-  - 삭제 버튼 (본인 게시글만)
-- [ ] **피드 카드 컴포넌트** (`components/feed/FeedCard.tsx`):
+  - 삭제/수정 버튼 (본인 게시글만)
+- [x] **피드 카드 컴포넌트** (`components/feed/FeedCard.tsx`):
   - 작성자 아바타 + 닉네임 + 작성 시간 (relative time: "3시간 전")
   - 본문 미리보기 (3줄, 더보기)
   - 이미지 썸네일 (1장이면 전체, 2장이면 2열, 3장 이상이면 그리드)
@@ -447,6 +444,49 @@
   - `MindmapVisualization` + `PeriodFilter` + `SourceFilter` 조합
   - 우측 또는 하단에 `TagDetailPanel` (사이드 패널)
   - 태그 없을 때 빈 상태 UI ("일기를 쓰거나 피드에서 좋아요를 눌러보세요!")
+
+### 7.5주차 — 대댓글 + 댓글 좋아요 UI
+
+> 백엔드 8.5주차 완성 후 진행. 대댓글/댓글 좋아요 API를 프론트에서 연동한다.
+
+**설계 결정 사항**
+- 대댓글 깊이: 1단계만 (대대댓글 불가)
+- 댓글 목록에서 `replyCount`만 표시 + "대댓글 N개 보기" 클릭 시 lazy load
+- 부모 댓글 삭제 시: "삭제된 댓글입니다" 표시, 대댓글은 유지
+- 대댓글 정렬: 오래된 순 (대화 흐름)
+- `CommentResponse`에 `parentId`, `replyCount`, `likeCount`, `likedByMe` 포함
+
+**API 함수 (`api/feed.ts` 확장)**
+- [ ] `getReplies(feedId, commentId, cursor)` → `GET /api/v1/feeds/{feedId}/comments/{commentId}/replies`
+- [ ] `likeComment(feedId, commentId)` → `POST /api/v1/feeds/{feedId}/comments/{commentId}/likes`
+- [ ] `unlikeComment(feedId, commentId)` → `DELETE /api/v1/feeds/{feedId}/comments/{commentId}/likes`
+- [ ] `createComment` 요청에 `parentCommentId` 옵션 필드 추가
+
+**타입 정의 (`types/feed.ts` 확장)**
+- [ ] `CommentResponse`에 `parentId`, `replyCount`, `likeCount`, `likedByMe` 필드 추가
+- [ ] `CreateCommentRequest`에 `parentCommentId?` 필드 추가
+
+**React Query 훅 (`hooks/useFeed.ts` 확장)**
+- [ ] `useReplies(feedId, commentId)` — infinite query (오래된 순)
+- [ ] `useCreateReply()` — mutation (대댓글 작성)
+- [ ] `useLikeComment()` — mutation + optimistic update (하트 토글 + 좋아요 수)
+- [ ] `useUnlikeComment()` — mutation + optimistic update
+
+**컴포넌트**
+- [ ] `CommentList.tsx` 수정: 각 댓글에 `replyCount` 표시 + "대댓글 N개 보기" 토글 버튼
+- [ ] `ReplyList.tsx` 신규: 대댓글 목록 (lazy load, 오래된 순, 무한 스크롤)
+- [ ] `CommentItem.tsx` 수정: 댓글 좋아요 버튼(하트 아이콘 + 좋아요 수), "답글 달기" 버튼
+- [ ] 삭제된 부모 댓글 UI: "삭제된 댓글입니다" 회색 표시 + 대댓글은 정상 노출
+- [ ] 대댓글 작성 입력: "답글 달기" 클릭 시 해당 댓글 하단에 입력창 노출
+
+**알림 타입 확장**
+- [ ] `types/notification.ts`에 `REPLY`, `COMMENT_LIKE` 알림 타입 추가
+- [ ] 알림 목록에서 대댓글/댓글 좋아요 알림 렌더링 처리
+
+**테스트**
+- [ ] API 함수 테스트: getReplies, likeComment, unlikeComment
+- [ ] 훅 테스트: useReplies, useLikeComment (optimistic update 포함)
+- [ ] 컴포넌트 테스트: 대댓글 토글, 댓글 좋아요 UI, 삭제된 부모 댓글 표시
 
 ### 8주차 — 태그 자동완성 + 검색 (Tag + Search 도메인)
 
@@ -937,3 +977,53 @@
 ---
 
 *각 태스크 완료 시 체크박스를 `[x]`로 변경하세요.*
+
+---
+
+## 백엔드 개발 대기 — 사이드바 위젯 API (2026-04-13 기준)
+
+> 피드 사이드바에 선구현된 세 위젯의 백엔드 API가 현재 개발 예정 상태입니다.
+> API 완성 전까지 목업 데이터 또는 빈 상태 UI로 유지해 주세요.
+
+### 개발 예정 API 목록
+
+| 위젯 | 엔드포인트 | 인증 | 상태 |
+|------|-----------|------|------|
+| 오늘의 트렌딩 | `GET /api/v1/tags/trending?limit=20` | 불필요 | 개발 예정 |
+| 추천 유저 | `GET /api/v1/users/recommendations?limit=5` | 선택 | 개발 예정 |
+| 익명 공감 | `GET /api/v1/tags/anonymous-sympathy?limit=5` | 선택 | 개발 예정 |
+
+### 응답 스펙 (상세)
+
+**오늘의 트렌딩** — `GET /api/v1/tags/trending`
+```json
+{
+  "success": true,
+  "data": [
+    { "tagName": "여행", "displayName": "여행", "count": 142 },
+    { "tagName": "일상", "displayName": "일상", "count": 98 }
+  ]
+}
+```
+
+**추천 유저** — `GET /api/v1/users/recommendations`
+```json
+{
+  "success": true,
+  "data": [
+    { "userId": 2, "nickname": "냐냥", "commonTagCount": 5, "isFollowing": false }
+  ]
+}
+```
+
+**익명 공감** — `GET /api/v1/tags/anonymous-sympathy`
+```json
+{
+  "success": true,
+  "data": [
+    { "tagName": "번아웃", "displayName": "번아웃", "count": 47 }
+  ]
+}
+```
+
+> API 준비 완료 시 이 섹션을 업데이트할 예정입니다.

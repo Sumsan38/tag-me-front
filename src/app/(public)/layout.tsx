@@ -39,5 +39,5 @@ export default function PublicLayout({
 }: {
   children: ReactNode;
 }) {
-  return <MainLayout>{children}</MainLayout>;
+  return <MainLayout contentMaxWidth="max-w-5xl">{children}</MainLayout>;
 }
