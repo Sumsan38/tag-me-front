@@ -142,7 +142,7 @@ export default function FeedDetailPage() {
       {/* 콘텐츠 최대 너비 제한 */}
       <div className="max-w-xl mx-auto">
       {/* Header */}
-      <header className="bg-white px-5 py-4 border-b border-gray-100">
+      <header className="sticky top-14 z-30 bg-white px-5 py-4 border-b border-gray-100">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
