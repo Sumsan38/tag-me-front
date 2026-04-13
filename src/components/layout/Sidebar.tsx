@@ -52,7 +52,7 @@ export default function Sidebar({ className = '' }: SidebarProps) {
       aria-label="사이드 네비게이션"
       className={[
         'hidden md:flex flex-col',
-        'w-60 shrink-0 h-screen sticky top-0',
+        'w-60 shrink-0 h-[calc(100vh-3.5rem)] sticky top-14',
         'bg-surface border-r border-border',
         className,
       ].join(' ')}

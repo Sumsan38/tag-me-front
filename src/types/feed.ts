@@ -33,6 +33,8 @@ export interface FeedTag {
 export interface FeedResponse {
   id: number;
   userId: number;
+  /** 작성자 닉네임. 탈퇴한 사용자인 경우 빈 문자열("")로 반환됩니다. */
+  authorNickname: string;
   content: string;
   isPublic: boolean;
   tags: FeedTag[];
@@ -80,6 +82,8 @@ export interface UpdateFeedRequest {
 export interface CommentResponse {
   id: number;
   userId: number;
+  /** 작성자 닉네임. 탈퇴한 사용자인 경우 빈 문자열("")로 반환됩니다. */
+  authorNickname: string;
   content: string;
   createdAt: string; // ISO 8601
 }

@@ -9,6 +9,7 @@ import { ko } from 'date-fns/locale';
 import Avatar from '@/components/common/Avatar';
 import Badge from '@/components/common/Badge';
 import CommentList from '@/components/feed/CommentList';
+import ImageCarousel from '@/components/feed/ImageCarousel';
 import { useFeed, useDeleteFeed, useLikeFeed, useUnlikeFeed } from '@/hooks/useFeed';
 import { useAuthStore, selectIsAuthenticated } from '@/stores/authStore';
 import { ROUTES } from '@/constants/routes';
@@ -137,7 +138,9 @@ export default function FeedDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="bg-gray-50">
+      {/* 콘텐츠 최대 너비 제한 */}
+      <div className="max-w-xl mx-auto">
       {/* Header */}
       <header className="bg-white px-5 py-4 border-b border-gray-100">
         <div className="flex items-center justify-between">
@@ -171,7 +174,7 @@ export default function FeedDetailPage() {
                     type="button"
                     onClick={() => {
                       setMenuOpen(false);
-                      // TODO: feed edit page
+                      router.push(ROUTES.FEED_EDIT(String(feedId)));
                     }}
                     className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
                   >
@@ -201,10 +204,10 @@ export default function FeedDetailPage() {
         <div className="px-5 py-4">
           {/* Author */}
           <div className="flex items-center gap-2.5 mb-3">
-            <Avatar initials={`U${feed.userId}`} size="lg" />
+            <Avatar initials={feed.authorNickname ? feed.authorNickname[0].toUpperCase() : '?'} size="lg" />
             <div>
               <span className="text-sm font-semibold text-gray-900">
-                사용자 {feed.userId}
+                {feed.authorNickname || '탈퇴한 사용자'}
               </span>
               <p className="text-xs text-gray-400">
                 {format(parseISO(feed.createdAt), 'yyyy. MM. dd  HH:mm', {
@@ -221,18 +224,7 @@ export default function FeedDetailPage() {
 
           {/* Images */}
           {feed.imageUrls.length > 0 && (
-            <div className="mb-4 rounded-xl overflow-hidden">
-              {feed.imageUrls.map((url, i) => (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img
-                  key={url}
-                  src={url}
-                  alt={`이미지 ${i + 1}`}
-                  className="w-full"
-                  loading="lazy"
-                />
-              ))}
-            </div>
+            <ImageCarousel urls={feed.imageUrls} />
           )}
 
           {/* Tags */}
@@ -316,6 +308,7 @@ export default function FeedDetailPage() {
           </div>
         </div>
       )}
+      </div>{/* max-w-xl */}
     </div>
   );
 }

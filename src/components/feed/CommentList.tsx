@@ -85,11 +85,11 @@ export default function CommentList({ feedId }: CommentListProps) {
       <div className="divide-y divide-gray-50">
         {comments.map((comment) => (
           <div key={comment.id} className="px-5 py-3 flex gap-2.5">
-            <Avatar initials={`U${comment.userId}`} size="sm" />
+            <Avatar initials={comment.authorNickname ? comment.authorNickname[0].toUpperCase() : '?'} size="sm" />
             <div className="flex-1 min-w-0">
               <div className="flex items-baseline gap-2">
                 <span className="text-xs font-semibold text-foreground">
-                  사용자 {comment.userId}
+                  {comment.authorNickname || '탈퇴한 사용자'}
                 </span>
                 <span className="text-[10px] text-muted">
                   {formatDistanceToNow(parseISO(comment.createdAt), {
@@ -148,7 +148,7 @@ export default function CommentList({ feedId }: CommentListProps) {
       {isAuthenticated && (
         <form
           onSubmit={handleSubmit}
-          className="sticky bottom-0 flex items-center gap-2 border-t border-gray-100 bg-white px-5 py-3"
+          className="sticky bottom-16 md:bottom-0 flex items-center gap-2 border-t border-gray-100 bg-white px-5 py-3"
         >
           <input
             ref={inputRef}

@@ -980,3 +980,53 @@
 ---
 
 *각 태스크 완료 시 체크박스를 `[x]`로 변경하세요.*
+
+---
+
+## 백엔드 개발 대기 — 사이드바 위젯 API (2026-04-13 기준)
+
+> 피드 사이드바에 선구현된 세 위젯의 백엔드 API가 현재 개발 예정 상태입니다.
+> API 완성 전까지 목업 데이터 또는 빈 상태 UI로 유지해 주세요.
+
+### 개발 예정 API 목록
+
+| 위젯 | 엔드포인트 | 인증 | 상태 |
+|------|-----------|------|------|
+| 오늘의 트렌딩 | `GET /api/v1/tags/trending?limit=20` | 불필요 | 개발 예정 |
+| 추천 유저 | `GET /api/v1/users/recommendations?limit=5` | 선택 | 개발 예정 |
+| 익명 공감 | `GET /api/v1/tags/anonymous-sympathy?limit=5` | 선택 | 개발 예정 |
+
+### 응답 스펙 (상세)
+
+**오늘의 트렌딩** — `GET /api/v1/tags/trending`
+```json
+{
+  "success": true,
+  "data": [
+    { "tagName": "여행", "displayName": "여행", "count": 142 },
+    { "tagName": "일상", "displayName": "일상", "count": 98 }
+  ]
+}
+```
+
+**추천 유저** — `GET /api/v1/users/recommendations`
+```json
+{
+  "success": true,
+  "data": [
+    { "userId": 2, "nickname": "냐냥", "commonTagCount": 5, "isFollowing": false }
+  ]
+}
+```
+
+**익명 공감** — `GET /api/v1/tags/anonymous-sympathy`
+```json
+{
+  "success": true,
+  "data": [
+    { "tagName": "번아웃", "displayName": "번아웃", "count": 47 }
+  ]
+}
+```
+
+> API 준비 완료 시 이 섹션을 업데이트할 예정입니다.
