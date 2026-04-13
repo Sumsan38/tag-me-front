@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { ArrowLeft, Globe, Lock } from 'lucide-react';
+import { ArrowLeft, Globe, Lock, ImageIcon } from 'lucide-react';
 
 import TagInput from '@/components/tag/TagInput';
 import { useFeed, useUpdateFeed } from '@/hooks/useFeed';
@@ -187,6 +187,40 @@ export default function FeedEditPage() {
               suggestions={TAG_SUGGESTIONS}
             />
           </div>
+        </div>
+
+        {/* Images (read-only) */}
+        <div>
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-semibold tracking-widest text-gray-400 uppercase">
+              첨부 이미지
+            </span>
+            <span className="flex items-center gap-1 text-[11px] text-indigo-400">
+              <ImageIcon size={11} />
+              이미지 추가·삭제는 추후 지원 예정
+            </span>
+          </div>
+          {feed.imageUrls.length > 0 ? (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {feed.imageUrls.map((url, i) => (
+                <div
+                  key={i}
+                  className="relative h-20 w-20 overflow-hidden rounded-xl border border-gray-100 bg-gray-100"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={url}
+                    alt={`첨부 이미지 ${i + 1}`}
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-2 flex h-20 items-center justify-center rounded-xl border border-dashed border-gray-200 bg-white">
+              <p className="text-[12px] text-gray-300">첨부된 이미지가 없습니다</p>
+            </div>
+          )}
         </div>
 
         {/* Visibility toggle */}
