@@ -1,0 +1,7 @@
+﻿interface:
+  display_name: "Task Diff Reviewer"
+  short_description: "Read task.md, review git diff, and grade it."
+  default_prompt: "Use $task-diff-reviewer to read task.md, review the current git diff, and grade the change from A to D."
+
+policy:
+  allow_implicit_invocation: true

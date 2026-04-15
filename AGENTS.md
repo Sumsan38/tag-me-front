@@ -1,4 +1,4 @@
-# Tag Me Frontend Agents
+﻿# Tag Me Frontend Agents
 
 This project is the frontend for Tag Me. Follow [`DevDock.md`](C:\Users\ndanl\IdeaProjects\tag-me\tag-me-front\DevDock.md) as the product and rendering-strategy source of truth.
 
@@ -17,6 +17,7 @@ This project is the frontend for Tag Me. Follow [`DevDock.md`](C:\Users\ndanl\Id
 - `tag-me-component-developer`: [`../.codex/skills/tag-me-component-developer/SKILL.md`](C:\Users\ndanl\IdeaProjects\tag-me\.codex\skills\tag-me-component-developer\SKILL.md)
 - `tag-me-api-integration`: [`../.codex/skills/tag-me-api-integration/SKILL.md`](C:\Users\ndanl\IdeaProjects\tag-me\.codex\skills\tag-me-api-integration\SKILL.md)
 - `tag-me-frontend-reviewer`: [`../.codex/skills/tag-me-frontend-reviewer/SKILL.md`](C:\Users\ndanl\IdeaProjects\tag-me\.codex\skills\tag-me-frontend-reviewer\SKILL.md)
+- `task-diff-reviewer`: [`skills/task-diff-reviewer/SKILL.md`](C:\Users\SimonaNam-260323\IdeaProjects\tag-me\tag-me-front\skills\task-diff-reviewer\SKILL.md)
 
 ## Skill Routing
 
@@ -26,6 +27,8 @@ This project is the frontend for Tag Me. Follow [`DevDock.md`](C:\Users\ndanl\Id
   Use `tag-me-component-developer`
 - React Query hooks, API clients, auth refresh flows, optimistic mutations, and S3 pre-signed upload flows:
   Use `tag-me-api-integration`
+- Progress-aware review that must read `task.md`, inspect `git diff`, and assign an A-D score:
+  Use `task-diff-reviewer`
 - Code review or patch review for frontend changes:
   Use `tag-me-frontend-reviewer`
 
@@ -36,7 +39,7 @@ This project is the frontend for Tag Me. Follow [`DevDock.md`](C:\Users\ndanl\Id
 - For interactive feed or search work:
   Use `tag-me-component-developer` and `tag-me-api-integration`
 - For review requests:
-  Use `tag-me-frontend-reviewer` first. Findings take priority over summaries.
+  Use `task-diff-reviewer` first, then apply `tag-me-frontend-reviewer` depth as needed. Findings take priority over summaries.
 
 ## Tag Me Frontend Constraints
 
