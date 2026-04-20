@@ -21,7 +21,10 @@ export default function EdgeDetailPanel({ edge, nodeMap, onClose, periodType, pe
   const { data, isLoading, isError, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useEdgeContents(contentsParams);
 
-  const items = data?.pages.flatMap((p) => p.items) ?? [];
+  const rawItems = data?.pages.flatMap((p) => p.items) ?? [];
+  const items = Array.from(
+    new Map(rawItems.map((item) => [`${item.type}-${item.id}`, item])).values(),
+  );
 
   if (!edge) return null;
 
@@ -114,7 +117,14 @@ export default function EdgeDetailPanel({ edge, nodeMap, onClose, periodType, pe
             <ul>
               {items.map((item) => (
                 <li key={`${item.type}-${item.id}`}>
-                  <ContentItemCard item={item} showTypeBadge />
+                  <ContentItemCard
+                    item={item}
+                    showTypeBadge
+                    edgeTagIdA={edge.tagIdA}
+                    edgeTagIdB={edge.tagIdB}
+                    periodType={periodType}
+                    period={period}
+                  />
                 </li>
               ))}
             </ul>

@@ -10,6 +10,14 @@ import type { ContentResponse } from './types';
 interface Props {
   item: ContentResponse;
   showTypeBadge?: boolean;
+  /** 노드 패널에서 열린 경우 — 뒤로가기 시 패널 복원용 */
+  nodeId?: number;
+  /** 엣지 패널에서 열린 경우 — 뒤로가기 시 패널 복원용 */
+  edgeTagIdA?: number;
+  edgeTagIdB?: number;
+  /** 기간 필터 복원용 */
+  periodType?: string;
+  period?: string;
 }
 
 const TAG_COLORS = [
@@ -42,16 +50,40 @@ function formatDate(iso: string | undefined) {
   }
 }
 
-export default function ContentItemCard({ item, showTypeBadge = false }: Props) {
+export default function ContentItemCard({
+  item,
+  showTypeBadge = false,
+  nodeId,
+  edgeTagIdA,
+  edgeTagIdB,
+  periodType,
+  period,
+}: Props) {
   const router = useRouter();
   const isDiary = item.type === 'DIARY';
 
   function handleClick() {
-    if (isDiary) {
-      router.push(ROUTES.DIARY_DETAIL(String(item.id)));
-    } else {
-      router.push(ROUTES.FEED_DETAIL(String(item.id)));
-    }
+    // 현재 마인드맵 히스토리 항목에 패널·기간 컨텍스트를 인코딩한다.
+    // 뒤로가기 시 /mindmap?nodeId=...&periodType=...&period=... 로 돌아와 복원된다.
+    const params = new URLSearchParams();
+    if (nodeId) params.set('nodeId', String(nodeId));
+    if (edgeTagIdA) params.set('edgeTagIdA', String(edgeTagIdA));
+    if (edgeTagIdB) params.set('edgeTagIdB', String(edgeTagIdB));
+    if (periodType) params.set('periodType', periodType);
+    if (period) params.set('period', period);
+
+    const paramStr = params.toString();
+    window.history.replaceState(
+      null,
+      '',
+      paramStr ? `${ROUTES.MINDMAP}?${paramStr}` : ROUTES.MINDMAP,
+    );
+
+    router.push(
+      isDiary
+        ? ROUTES.DIARY_DETAIL(String(item.id))
+        : ROUTES.FEED_DETAIL(String(item.id)),
+    );
   }
 
   return (
@@ -72,7 +104,6 @@ export default function ContentItemCard({ item, showTypeBadge = false }: Props) 
         </div>
 
         <div className="flex-1 min-w-0">
-          {/* Type badge (엣지 패널처럼 혼합 목록일 때) */}
           {showTypeBadge && (
             <span
               className="inline-block text-2xs font-semibold uppercase tracking-wider mb-1 px-1.5 py-0.5 rounded"
@@ -85,12 +116,10 @@ export default function ContentItemCard({ item, showTypeBadge = false }: Props) 
             </span>
           )}
 
-          {/* Snippet */}
           <p className="text-sm text-text line-clamp-2 leading-relaxed">
             {item.contentSnippet}
           </p>
 
-          {/* Feed 전용: 이미지 인디케이터 + 좋아요 */}
           {!isDiary && item.imageUrls.length > 0 && (
             <div className="flex items-center gap-1 mt-1.5 text-muted">
               <Image size={11} />
@@ -107,7 +136,6 @@ export default function ContentItemCard({ item, showTypeBadge = false }: Props) 
             </div>
           )}
 
-          {/* Tags */}
           {item.tags.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-1.5">
               {item.tags.slice(0, 4).map((tag, i) => (
@@ -119,11 +147,8 @@ export default function ContentItemCard({ item, showTypeBadge = false }: Props) 
             </div>
           )}
 
-          {/* Date */}
           <p className="text-2xs text-muted mt-1.5">
-            {isDiary
-              ? formatDate(item.diaryDateTime)
-              : formatDate(item.createdAt)}
+            {isDiary ? formatDate(item.diaryDateTime) : formatDate(item.createdAt)}
           </p>
         </div>
 

@@ -59,7 +59,10 @@ export default function TagDetailPanel({ node, onClose, periodType, period }: Pr
   const { data, isLoading, isError, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useTagContents(contentsParams);
 
-  const items = data?.pages.flatMap((p) => p.items) ?? [];
+  const rawItems = data?.pages.flatMap((p) => p.items) ?? [];
+  const items = Array.from(
+    new Map(rawItems.map((item) => [`${item.type}-${item.id}`, item])).values(),
+  );
 
   if (!node) return null;
 
@@ -166,7 +169,13 @@ export default function TagDetailPanel({ node, onClose, periodType, period }: Pr
                 <ul>
                   {items.map((item) => (
                     <li key={`${item.type}-${item.id}`}>
-                      <ContentItemCard item={item} showTypeBadge={false} />
+                      <ContentItemCard
+                        item={item}
+                        showTypeBadge={false}
+                        nodeId={node.tagId}
+                        periodType={periodType}
+                        period={period}
+                      />
                     </li>
                   ))}
                 </ul>

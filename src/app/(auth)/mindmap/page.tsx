@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { Info, Loader2 } from 'lucide-react';
-import { format, startOfWeek } from 'date-fns';
+import { format, startOfWeek, parse } from 'date-fns';
 import {
   MindmapVisualization,
   PeriodFilter,
@@ -14,8 +14,35 @@ import type {
   NodeResponse, EdgeResponse,
   PeriodType, SourceFilterValue, CustomRange,
 } from '@/components/mindmap';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useMindmap } from '@/hooks/useMindmap';
 import type { GetMindmapParams } from '@/api/mindmap';
+import { ROUTES } from '@/constants/routes';
+
+// ── period 파싱 (URL → state) ─────────────────────────────────────────────────
+
+function parsePeriodFromUrl(
+  periodTypeStr: string | null,
+  periodStr: string | null,
+): { periodType: PeriodType; baseDate: Date } | null {
+  if (!periodTypeStr || !periodStr) return null;
+  const periodType = periodTypeStr as PeriodType;
+  try {
+    let baseDate: Date;
+    if (periodType === 'year') {
+      baseDate = new Date(Number(periodStr), 0, 1);
+    } else if (periodType === 'month') {
+      const [y, m] = periodStr.split('-').map(Number);
+      baseDate = new Date(y, m - 1, 1);
+    } else {
+      // day, week → yyyy-MM-dd
+      baseDate = parse(periodStr, 'yyyy-MM-dd', new Date());
+    }
+    return { periodType, baseDate };
+  } catch {
+    return null;
+  }
+}
 
 // ── period 변환 ───────────────────────────────────────────────────────────────
 
@@ -62,12 +89,28 @@ type PanelState =
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function MindmapPage() {
-  const [periodType, setPeriodType] = useState<PeriodType>('month');
-  const [baseDate, setBaseDate] = useState(new Date());
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // 뒤로가기 복원: URL 파라미터를 마운트 시 한 번만 읽어 초기 상태를 결정한다
+  const restoredPeriod = parsePeriodFromUrl(
+    searchParams.get('periodType'),
+    searchParams.get('period'),
+  );
+
+  const [periodType, setPeriodType] = useState<PeriodType>(
+    restoredPeriod?.periodType ?? 'month',
+  );
+  const [baseDate, setBaseDate] = useState(restoredPeriod?.baseDate ?? new Date());
   const [customRange, setCustomRange] = useState<CustomRange | undefined>(undefined);
   const [sourceFilter, setSourceFilter] = useState<SourceFilterValue>('all');
   const [panel, setPanel] = useState<PanelState>({ kind: 'none' });
   const [showLegend, setShowLegend] = useState(false);
+
+  const restoreNodeId = useRef(Number(searchParams.get('nodeId')) || null);
+  const restoreEdgeA  = useRef(Number(searchParams.get('edgeTagIdA')) || null);
+  const restoreEdgeB  = useRef(Number(searchParams.get('edgeTagIdB')) || null);
+  const restored      = useRef(false);
 
   const periodParams = useMemo(
     () => buildPeriodParams(periodType, baseDate, customRange),
@@ -75,6 +118,34 @@ export default function MindmapPage() {
   );
 
   const { data, isLoading, isError } = useMindmap(periodParams);
+
+  // 데이터가 도착하면 뒤로가기 패널 상태를 한 번만 복원하고 URL을 정리한다
+  useEffect(() => {
+    if (restored.current || !data) return;
+    if (!restoreNodeId.current && !restoreEdgeA.current) return;
+
+    if (restoreNodeId.current) {
+      const node = data.nodes.find((n) => n.tagId === restoreNodeId.current);
+      if (node) {
+        setPanel({ kind: 'node', node });
+        restored.current = true;
+        router.replace(ROUTES.MINDMAP, { scroll: false });
+      }
+    } else if (restoreEdgeA.current && restoreEdgeB.current) {
+      const a = restoreEdgeA.current;
+      const b = restoreEdgeB.current;
+      const edge = data.edges.find(
+        (e) =>
+          (e.tagIdA === a && e.tagIdB === b) ||
+          (e.tagIdA === b && e.tagIdB === a),
+      );
+      if (edge) {
+        setPanel({ kind: 'edge', edge });
+        restored.current = true;
+        router.replace(ROUTES.MINDMAP, { scroll: false });
+      }
+    }
+  }, [data, router]);
 
   const allNodes = data?.nodes ?? [];
   const allEdges = data?.edges ?? [];
