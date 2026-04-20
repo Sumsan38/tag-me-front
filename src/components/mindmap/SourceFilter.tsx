@@ -26,7 +26,7 @@ const FILTERS: {
   },
   {
     value: 'FEED',
-    label: '게시글',
+    label: '피드',
     icon: <FileText size={13} />,
     style: { fg: SOURCE_STYLES.FEED.stroke, bg: '#F0FDF4' },
   },
@@ -52,7 +52,7 @@ const FILTERS: {
 
 export default function SourceFilter({ value, onChange }: Props) {
   return (
-    <div className="flex items-center gap-1.5 flex-wrap">
+    <div className="flex items-center gap-1.5 overflow-x-auto flex-nowrap pb-0.5 scrollbar-none">
       {FILTERS.map((f) => {
         const isActive = value === f.value;
         const style = f.style;
@@ -61,7 +61,7 @@ export default function SourceFilter({ value, onChange }: Props) {
             key={f.value}
             onClick={() => onChange(f.value)}
             className={[
-              'flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-all border',
+              'flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-all border whitespace-nowrap flex-shrink-0',
               isActive
                 ? 'shadow-sm scale-[1.03]'
                 : 'bg-surface text-sub border-border hover:border-muted hover:text-text',

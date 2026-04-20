@@ -40,7 +40,7 @@ interface SimLink extends d3.SimulationLinkDatum<SimNode> {
 
 export const SOURCE_STYLES: Record<PrimarySource, { fill: string; stroke: string; label: string }> = {
   DIARY:        { fill: '#EFF6FF', stroke: '#2563EB', label: '일기' },
-  FEED:         { fill: '#F0FDF4', stroke: '#16A34A', label: '게시글' },
+  FEED:         { fill: '#F0FDF4', stroke: '#16A34A', label: '피드' },
   LIKE:         { fill: '#FFF1F2', stroke: '#BE185D', label: '좋아요' },
   COMMENT:      { fill: '#FFFBEB', stroke: '#B45309', label: '댓글' },
   COMMENT_LIKE: { fill: '#F5F3FF', stroke: '#7C3AED', label: '댓글좋아요' },
@@ -149,6 +149,21 @@ export default function MindmapVisualization({
       .force('charge', d3.forceManyBody().strength(-350))
       .force('center', d3.forceCenter(width / 2, height / 2).strength(0.05))
       .force('collision', d3.forceCollide<SimNode>().radius((d) => rScale(d.data.totalCount) + 14));
+
+    // 노드가 캔버스 경계 밖으로 나가지 않도록 위치+속도 동시 클램프
+    sim.force('boundary', () => {
+      for (const node of simNodes) {
+        const r = rScale(node.data?.totalCount ?? 5) + 24;
+        if (node.x != null) {
+          if (node.x < r)         { node.x = r;         if ((node.vx ?? 0) < 0) node.vx = 0; }
+          if (node.x > width - r) { node.x = width - r; if ((node.vx ?? 0) > 0) node.vx = 0; }
+        }
+        if (node.y != null) {
+          if (node.y < r)          { node.y = r;          if ((node.vy ?? 0) < 0) node.vy = 0; }
+          if (node.y > height - r) { node.y = height - r; if ((node.vy ?? 0) > 0) node.vy = 0; }
+        }
+      }
+    });
 
     simulationRef.current = sim;
 

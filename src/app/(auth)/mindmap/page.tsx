@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useMemo } from 'react';
 import { Info } from 'lucide-react';
-import { format, startOfWeek, getWeek } from 'date-fns';
+import { format, startOfWeek } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import {
   MindmapVisualization,
@@ -11,19 +11,20 @@ import {
   TagDetailPanel,
   EdgeDetailPanel,
 } from '@/components/mindmap';
-import type { NodeResponse, EdgeResponse, PeriodType, SourceFilterValue } from '@/components/mindmap';
+import type {
+  NodeResponse, EdgeResponse,
+  PeriodType, SourceFilterValue, CustomRange,
+} from '@/components/mindmap';
 
 // ── Mock datasets per period ─────────────────────────────────────────────────
-// 실제 API 연동 시 periodType + period 파라미터로 대체
 
 interface MockDataset {
   nodes: NodeResponse[];
   edges: EdgeResponse[];
 }
 
-/** 월별 데이터 — 태그 분포가 다름 */
+/** 월별 데이터 */
 const DATASETS: Record<string, MockDataset> = {
-  // 이번 달 (2026-04) — 여행/일상 강세
   '2026-04': {
     nodes: [
       { tagId: 1,  tagName: '여행',   primarySource: 'DIARY',        totalCount: 18, diaryCount: 12, feedCount: 4,  likeCount: 1, commentCount: 1, commentLikeCount: 0 },
@@ -58,7 +59,6 @@ const DATASETS: Record<string, MockDataset> = {
     ],
   },
 
-  // 전달 (2026-03) — 독서/감정 강세, 여행 없음
   '2026-03': {
     nodes: [
       { tagId: 4,  tagName: '독서',   primarySource: 'DIARY',        totalCount: 15, diaryCount: 11, feedCount: 3,  likeCount: 1, commentCount: 0, commentLikeCount: 0 },
@@ -83,7 +83,6 @@ const DATASETS: Record<string, MockDataset> = {
     ],
   },
 
-  // 2026년 전체 — 노드 많고 카운트 큼
   '2026': {
     nodes: [
       { tagId: 9,  tagName: '일상',   primarySource: 'FEED',         totalCount: 87, diaryCount: 18, feedCount: 52, likeCount: 10, commentCount: 7, commentLikeCount: 0 },
@@ -124,7 +123,6 @@ const DATASETS: Record<string, MockDataset> = {
   },
 };
 
-/** 이번 주 (주간) — 태그 적고 count 낮음 */
 const WEEK_DATASET: MockDataset = {
   nodes: [
     { tagId: 9,  tagName: '일상',   primarySource: 'FEED',  totalCount: 5, diaryCount: 1, feedCount: 3, likeCount: 1, commentCount: 0, commentLikeCount: 0 },
@@ -140,54 +138,64 @@ const WEEK_DATASET: MockDataset = {
   ],
 };
 
-/** period 키 계산 */
+const DAY_DATASET: MockDataset = {
+  nodes: [
+    { tagId: 9,  tagName: '일상', primarySource: 'FEED',  totalCount: 2, diaryCount: 0, feedCount: 1, likeCount: 1, commentCount: 0, commentLikeCount: 0 },
+    { tagId: 3,  tagName: '카페', primarySource: 'DIARY', totalCount: 1, diaryCount: 1, feedCount: 0, likeCount: 0, commentCount: 0, commentLikeCount: 0 },
+    { tagId: 10, tagName: '감정', primarySource: 'DIARY', totalCount: 1, diaryCount: 1, feedCount: 0, likeCount: 0, commentCount: 0, commentLikeCount: 0 },
+  ],
+  edges: [
+    { tagIdA: 3, tagIdB: 10, totalWeight: 1, sourceWeights: [{ sourceType: 'DIARY', weight: 1 }] },
+  ],
+};
+
 function getPeriodKey(periodType: PeriodType, baseDate: Date): string {
   if (periodType === 'year') return format(baseDate, 'yyyy');
   if (periodType === 'month') return format(baseDate, 'yyyy-MM');
-  // week — 해당 주의 월요일 기준 키
   const monday = startOfWeek(baseDate, { weekStartsOn: 1 });
   return `week-${format(monday, 'yyyy-MM-dd')}`;
 }
 
 function getDataset(periodType: PeriodType, baseDate: Date): MockDataset {
+  if (periodType === 'day') return DAY_DATASET;
   if (periodType === 'week') return WEEK_DATASET;
+  if (periodType === 'custom') return WEEK_DATASET;
   const key = getPeriodKey(periodType, baseDate);
   return DATASETS[key] ?? DATASETS['2026-04'];
 }
 
-// ── Legend ──────────────────────────────────────────────────────────────────
+// ── Legend ───────────────────────────────────────────────────────────────────
 
 const LEGEND = [
-  { color: '#2563EB', label: '일기 작성',   dash: false },
-  { color: '#16A34A', label: '게시글 작성', dash: false },
-  { color: '#BE185D', label: '좋아요',      dash: true },
-  { color: '#B45309', label: '댓글',        dash: true },
-  { color: '#7C3AED', label: '댓글좋아요',  dash: true },
+  { color: '#2563EB', label: '일기 작성',  dash: false },
+  { color: '#16A34A', label: '피드 작성',  dash: false },
+  { color: '#BE185D', label: '좋아요',     dash: true },
+  { color: '#B45309', label: '댓글',       dash: true },
+  { color: '#7C3AED', label: '댓글좋아요', dash: true },
 ] as const;
 
-// ── Panel state ──────────────────────────────────────────────────────────────
+// ── Panel state ───────────────────────────────────────────────────────────────
 
 type PanelState =
   | { kind: 'none' }
   | { kind: 'node'; node: NodeResponse }
   | { kind: 'edge'; edge: EdgeResponse };
 
-// ── Page ─────────────────────────────────────────────────────────────────────
+// ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function MindmapPage() {
   const [periodType, setPeriodType] = useState<PeriodType>('month');
   const [baseDate, setBaseDate] = useState(new Date());
+  const [customRange, setCustomRange] = useState<CustomRange | undefined>(undefined);
   const [sourceFilter, setSourceFilter] = useState<SourceFilterValue>('all');
   const [panel, setPanel] = useState<PanelState>({ kind: 'none' });
   const [showLegend, setShowLegend] = useState(false);
 
-  // 기간이 바뀔 때만 dataset 교체
   const dataset = useMemo(
     () => getDataset(periodType, baseDate),
     [periodType, baseDate],
   );
 
-  // sourceFilter가 바뀔 때만 필터링 — 패널 상태 변경은 D3 재시작 안 함
   const filteredNodes = useMemo(
     () =>
       sourceFilter === 'all'
@@ -226,65 +234,72 @@ export default function MindmapPage() {
 
   const handleClose = useCallback(() => setPanel({ kind: 'none' }), []);
 
+  const resetPanel = useCallback(() => setPanel({ kind: 'none' }), []);
+
   const panelOpen = panel.kind !== 'none';
   const selectedNodeId = panel.kind === 'node' ? panel.node.tagId : null;
 
   return (
     <div className="flex flex-col" style={{ height: 'calc(100dvh - 56px)' }}>
-      {/* Toolbar */}
-      <div className="flex-shrink-0 bg-surface border-b border-border px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-4 flex-wrap">
-          <PeriodFilter
-            periodType={periodType}
-            baseDate={baseDate}
-            onPeriodTypeChange={(t) => { setPeriodType(t); setPanel({ kind: 'none' }); }}
-            onBaseDateChange={(d) => { setBaseDate(d); setPanel({ kind: 'none' }); }}
-          />
-          <SourceFilter value={sourceFilter} onChange={setSourceFilter} />
-        </div>
-
-        {/* Legend toggle */}
-        <div className="relative">
-          <button
-            onClick={() => setShowLegend((v) => !v)}
-            className="w-7 h-7 flex items-center justify-center rounded-md text-muted hover:bg-border hover:text-text transition-colors"
-            aria-label="범례"
-          >
-            <Info size={15} />
-          </button>
-          {showLegend && (
-            <div className="absolute right-0 top-9 z-20 bg-surface border border-border rounded-xl shadow-modal p-4 w-52">
-              <p className="text-2xs font-semibold uppercase tracking-widest text-muted mb-3">범례</p>
-              <div className="space-y-2.5">
-                {LEGEND.map((l) => (
-                  <div key={l.label} className="flex items-center gap-2.5">
-                    <div
-                      className="w-8 h-1.5 rounded-full flex-shrink-0"
-                      style={{
-                        background: l.dash
-                          ? `repeating-linear-gradient(90deg,${l.color} 0,${l.color} 5px,transparent 5px,transparent 9px)`
-                          : l.color,
-                      }}
-                    />
-                    <span className="text-xs text-sub">{l.label}</span>
-                  </div>
-                ))}
+      {/* Toolbar — 항상 2행 고정 */}
+      <div className="flex-shrink-0 bg-surface border-b border-border px-4 pt-2.5 pb-2 flex flex-col gap-1.5">
+        {/* 행 1: 기간 필터 + 범례 */}
+        <div className="flex items-center justify-between gap-2 min-w-0">
+          <div className="min-w-0 overflow-hidden">
+            <PeriodFilter
+              periodType={periodType}
+              baseDate={baseDate}
+              onPeriodTypeChange={(t) => { setPeriodType(t); resetPanel(); }}
+              onBaseDateChange={(d) => { setBaseDate(d); resetPanel(); }}
+              customRange={customRange}
+              onCustomRangeChange={(r) => { setCustomRange(r); resetPanel(); }}
+            />
+          </div>
+          {/* 범례 */}
+          <div className="relative flex-shrink-0">
+            <button
+              onClick={() => setShowLegend((v) => !v)}
+              className="w-7 h-7 flex items-center justify-center rounded-md text-muted hover:bg-border hover:text-text transition-colors"
+              aria-label="범례"
+            >
+              <Info size={15} />
+            </button>
+            {showLegend && (
+              <div className="absolute right-0 top-9 z-20 bg-surface border border-border rounded-xl shadow-modal p-4 w-52">
+                <p className="text-2xs font-semibold uppercase tracking-widest text-muted mb-3">범례</p>
+                <div className="space-y-2.5">
+                  {LEGEND.map((l) => (
+                    <div key={l.label} className="flex items-center gap-2.5">
+                      <div
+                        className="w-8 h-1.5 rounded-full flex-shrink-0"
+                        style={{
+                          background: l.dash
+                            ? `repeating-linear-gradient(90deg,${l.color} 0,${l.color} 5px,transparent 5px,transparent 9px)`
+                            : l.color,
+                        }}
+                      />
+                      <span className="text-xs text-sub">{l.label}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-3 pt-3 border-t border-border space-y-1">
+                  <p className="text-2xs text-muted">노드 크기 = 인터랙션 횟수</p>
+                  <p className="text-2xs text-muted">노드 색 = 주요 출처</p>
+                  <p className="text-2xs text-muted">엣지 클릭 = 함께 등장한 콘텐츠</p>
+                </div>
               </div>
-              <div className="mt-3 pt-3 border-t border-border space-y-1">
-                <p className="text-2xs text-muted">노드 크기 = 인터랙션 횟수</p>
-                <p className="text-2xs text-muted">노드 색 = 주요 출처</p>
-                <p className="text-2xs text-muted">엣지 클릭 = 함께 등장한 콘텐츠</p>
-              </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
+        {/* 행 2: 소스 필터 */}
+        <SourceFilter value={sourceFilter} onChange={setSourceFilter} />
       </div>
 
-      {/* Main: visualization + side panel */}
-      <div className="flex-1 flex overflow-hidden">
+      {/* Main: visualization + panel */}
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0">
         {/* Canvas */}
         <div
-          className="flex-1 min-w-0"
+          className="flex-1 min-w-0 min-h-0"
           style={{ background: 'radial-gradient(ellipse 80% 70% at 50% 50%, #F4F2EE 0%, #EFEDE8 100%)' }}
           onClick={() => setPanel({ kind: 'none' })}
         >
@@ -300,6 +315,7 @@ export default function MindmapPage() {
             </div>
           ) : (
             <MindmapVisualization
+              key={`${periodType}-${baseDate.getTime()}-${customRange?.from?.getTime() ?? ''}-${customRange?.to?.getTime() ?? ''}`}
               nodes={filteredNodes}
               edges={filteredEdges}
               onNodeClick={handleNodeClick}
@@ -309,14 +325,17 @@ export default function MindmapPage() {
           )}
         </div>
 
-        {/* Side panel */}
+        {/* Side panel — right on desktop, bottom on mobile */}
         <div
           className={[
             'flex-shrink-0 transition-all duration-300 overflow-hidden',
-            panelOpen ? 'w-72' : 'w-0',
+            'border-t border-border md:border-t-0 md:border-l',
+            panelOpen
+              ? 'h-[380px] md:h-auto md:w-72'
+              : 'h-0 md:h-auto md:w-0',
           ].join(' ')}
         >
-          <div className="w-72 h-full">
+          <div className="w-full md:w-72 h-full">
             {panel.kind === 'node' && (
               <TagDetailPanel node={panel.node} onClose={handleClose} />
             )}

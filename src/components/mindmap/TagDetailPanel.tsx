@@ -111,7 +111,7 @@ interface TabMeta {
 
 const TABS: TabMeta[] = [
   { value: 'DIARY',        label: '일기',       icon: <BookOpen size={13} />,       countKey: 'diaryCount',       sourceTypeParam: 'diary' },
-  { value: 'FEED',         label: '게시글',     icon: <FileText size={13} />,       countKey: 'feedCount',        sourceTypeParam: 'feed' },
+  { value: 'FEED',         label: '피드',       icon: <FileText size={13} />,       countKey: 'feedCount',        sourceTypeParam: 'feed' },
   { value: 'LIKE',         label: '좋아요',     icon: <Heart size={13} />,          countKey: 'likeCount',        sourceTypeParam: 'like' },
   { value: 'COMMENT',      label: '댓글',       icon: <MessageCircle size={13} />,  countKey: 'commentCount',     sourceTypeParam: 'comment' },
   { value: 'COMMENT_LIKE', label: '댓글좋아요', icon: <HeartHandshake size={13} />, countKey: 'commentLikeCount', sourceTypeParam: 'comment_like' },
@@ -140,7 +140,7 @@ export default function TagDetailPanel({ node, onClose }: Props) {
   const bars: { source: PrimarySource; count: number; label: string }[] = (
     [
       { source: 'DIARY'        as PrimarySource, count: node.diaryCount,       label: '일기' },
-      { source: 'FEED'         as PrimarySource, count: node.feedCount,        label: '게시글' },
+      { source: 'FEED'         as PrimarySource, count: node.feedCount,        label: '피드' },
       { source: 'LIKE'         as PrimarySource, count: node.likeCount,        label: '좋아요' },
       { source: 'COMMENT'      as PrimarySource, count: node.commentCount,     label: '댓글' },
       { source: 'COMMENT_LIKE' as PrimarySource, count: node.commentLikeCount, label: '댓글좋아요' },
@@ -148,9 +148,9 @@ export default function TagDetailPanel({ node, onClose }: Props) {
   ).filter((b) => b.count > 0);
 
   return (
-    <div className="flex flex-col h-full bg-surface border-l border-border">
+    <div className="flex flex-col h-full bg-surface">
       {/* Header */}
-      <div className="flex-shrink-0 px-5 py-4 flex items-start justify-between gap-2 border-b border-border">
+      <div className="flex-shrink-0 px-4 py-3 flex items-start justify-between gap-2 border-b border-border">
         <div>
           <span className="text-xl font-bold tracking-tight" style={{ color: style.stroke }}>
             #{node.tagName}
@@ -169,9 +169,9 @@ export default function TagDetailPanel({ node, onClose }: Props) {
       </div>
 
       {/* Source breakdown */}
-      <div className="flex-shrink-0 px-5 py-4 border-b border-border">
-        <p className="text-2xs font-semibold uppercase tracking-widest text-muted mb-3">출처 분포</p>
-        <div className="space-y-2">
+      <div className="flex-shrink-0 px-4 py-3 border-b border-border">
+        <p className="text-2xs font-semibold uppercase tracking-widest text-muted mb-2">출처 분포</p>
+        <div className="space-y-1.5">
           {bars.map((b) => {
             const pct = Math.round((b.count / node.totalCount) * 100);
             const s = SOURCE_STYLES[b.source];
@@ -205,7 +205,7 @@ export default function TagDetailPanel({ node, onClose }: Props) {
                   key={t.value}
                   onClick={() => setActiveTab(t.value)}
                   className={[
-                    'flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium whitespace-nowrap border-b-2 transition-colors',
+                    'flex items-center gap-1.5 px-4 py-2 text-xs font-medium whitespace-nowrap border-b-2 transition-colors',
                     isActive ? 'border-current' : 'border-transparent text-sub hover:text-text',
                   ].join(' ')}
                   style={isActive ? { color: s.stroke } : {}}

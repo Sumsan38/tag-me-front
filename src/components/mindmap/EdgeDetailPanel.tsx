@@ -155,7 +155,7 @@ export default function EdgeDetailPanel({ edge, nodeMap, onClose }: Props) {
   const feedCount = items.filter((i) => i.type === 'FEED').length;
 
   return (
-    <div className="flex flex-col h-full bg-surface border-l border-border">
+    <div className="flex flex-col h-full bg-surface">
       {/* Header */}
       <div className="flex-shrink-0 px-5 py-4 border-b border-border">
         <div className="flex items-start justify-between gap-2">
@@ -180,7 +180,7 @@ export default function EdgeDetailPanel({ edge, nodeMap, onClose }: Props) {
                     COMMENT: '#B45309', COMMENT_LIKE: '#7C3AED',
                   };
                   const labels: Record<string, string> = {
-                    DIARY: '일기', FEED: '게시글', LIKE: '좋아요',
+                    DIARY: '일기', FEED: '피드', LIKE: '좋아요',
                     COMMENT: '댓글', COMMENT_LIKE: '댓글좋아요',
                   };
                   return (
@@ -219,7 +219,7 @@ export default function EdgeDetailPanel({ edge, nodeMap, onClose }: Props) {
         )}
         {feedCount > 0 && (
           <span className="text-xs" style={{ color: '#16A34A' }}>
-            게시글 {feedCount}
+            피드 {feedCount}
           </span>
         )}
       </div>
