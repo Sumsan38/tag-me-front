@@ -3,6 +3,8 @@
 import { BookOpen, FileText, Image, Heart, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
+import { useRouter } from 'next/navigation';
+import { ROUTES } from '@/constants/routes';
 import type { ContentResponse } from './types';
 
 interface Props {
@@ -31,7 +33,8 @@ function TagChip({ name, idx }: { name: string; idx: number }) {
   );
 }
 
-function formatDate(iso: string) {
+function formatDate(iso: string | undefined) {
+  if (!iso) return '';
   try {
     return format(new Date(iso), 'yyyy.MM.dd', { locale: ko });
   } catch {
@@ -40,10 +43,22 @@ function formatDate(iso: string) {
 }
 
 export default function ContentItemCard({ item, showTypeBadge = false }: Props) {
+  const router = useRouter();
   const isDiary = item.type === 'DIARY';
 
+  function handleClick() {
+    if (isDiary) {
+      router.push(ROUTES.DIARY_DETAIL(String(item.id)));
+    } else {
+      router.push(ROUTES.FEED_DETAIL(String(item.id)));
+    }
+  }
+
   return (
-    <button className="group w-full text-left px-4 py-3.5 hover:bg-[#FAFAF8] transition-colors border-b border-border last:border-0">
+    <button
+      onClick={handleClick}
+      className="group w-full text-left px-4 py-3.5 hover:bg-[#FAFAF8] transition-colors border-b border-border last:border-0"
+    >
       <div className="flex items-start gap-2.5">
         {/* Type icon */}
         <div
