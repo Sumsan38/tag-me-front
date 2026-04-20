@@ -384,13 +384,6 @@
   - 태그 칩 목록
   - 좋아요/댓글 수 + 아이콘 버튼
 
-**이미지 업로드 유틸**
-- [ ] `utils/upload.ts` 작성:
-  - `getPresignedUrl(fileName, contentType)` → Pre-signed URL 요청
-  - `uploadToS3(presignedUrl, file, onProgress)` → PUT 직접 업로드 + 진행률 콜백
-  - 파일 크기 검증 (10MB), Content-Type 검증 (image/*)
-- [ ] `hooks/useImageUpload.ts`: 복수 이미지 업로드 관리 (순차/병렬), 업로드 상태 관리
-
 ---
 
 ## Phase 3 — 마인드맵 v0.1 + 소셜 기능 (7~10주)
@@ -444,6 +437,13 @@
   - `MindmapVisualization` + `PeriodFilter` + `SourceFilter` 조합
   - 우측 또는 하단에 `TagDetailPanel` (사이드 패널)
   - 태그 없을 때 빈 상태 UI ("일기를 쓰거나 피드에서 좋아요를 눌러보세요!")
+
+**이미지 업로드 유틸**
+- [ ] `utils/upload.ts` 작성:
+  - `getPresignedUrl(fileName, contentType)` → Pre-signed URL 요청
+  - `uploadToS3(presignedUrl, file, onProgress)` → PUT 직접 업로드 + 진행률 콜백
+  - 파일 크기 검증 (10MB), Content-Type 검증 (image/*)
+- [ ] `hooks/useImageUpload.ts`: 복수 이미지 업로드 관리 (순차/병렬), 업로드 상태 관리
 
 ### 7.5주차 — 대댓글 + 댓글 좋아요 UI
 
