@@ -1,9 +1,8 @@
 'use client';
 
 import { useState, useCallback, useMemo } from 'react';
-import { Info } from 'lucide-react';
+import { Info, Loader2 } from 'lucide-react';
 import { format, startOfWeek } from 'date-fns';
-import { ko } from 'date-fns/locale';
 import {
   MindmapVisualization,
   PeriodFilter,
@@ -15,153 +14,32 @@ import type {
   NodeResponse, EdgeResponse,
   PeriodType, SourceFilterValue, CustomRange,
 } from '@/components/mindmap';
+import { useMindmap } from '@/hooks/useMindmap';
+import type { GetMindmapParams } from '@/api/mindmap';
 
-// ── Mock datasets per period ─────────────────────────────────────────────────
+// ── period 변환 ───────────────────────────────────────────────────────────────
 
-interface MockDataset {
-  nodes: NodeResponse[];
-  edges: EdgeResponse[];
-}
-
-/** 월별 데이터 */
-const DATASETS: Record<string, MockDataset> = {
-  '2026-04': {
-    nodes: [
-      { tagId: 1,  tagName: '여행',   primarySource: 'DIARY',        totalCount: 18, diaryCount: 12, feedCount: 4,  likeCount: 1, commentCount: 1, commentLikeCount: 0 },
-      { tagId: 2,  tagName: '번아웃', primarySource: 'FEED',         totalCount: 14, diaryCount: 3,  feedCount: 8,  likeCount: 2, commentCount: 1, commentLikeCount: 0 },
-      { tagId: 3,  tagName: '카페',   primarySource: 'DIARY',        totalCount: 11, diaryCount: 7,  feedCount: 2,  likeCount: 1, commentCount: 1, commentLikeCount: 0 },
-      { tagId: 4,  tagName: '독서',   primarySource: 'DIARY',        totalCount: 9,  diaryCount: 6,  feedCount: 2,  likeCount: 1, commentCount: 0, commentLikeCount: 0 },
-      { tagId: 5,  tagName: '운동',   primarySource: 'FEED',         totalCount: 13, diaryCount: 2,  feedCount: 9,  likeCount: 1, commentCount: 1, commentLikeCount: 0 },
-      { tagId: 6,  tagName: '감사',   primarySource: 'DIARY',        totalCount: 7,  diaryCount: 5,  feedCount: 1,  likeCount: 1, commentCount: 0, commentLikeCount: 0 },
-      { tagId: 7,  tagName: '음악',   primarySource: 'LIKE',         totalCount: 8,  diaryCount: 1,  feedCount: 2,  likeCount: 4, commentCount: 1, commentLikeCount: 0 },
-      { tagId: 8,  tagName: '요리',   primarySource: 'COMMENT',      totalCount: 6,  diaryCount: 1,  feedCount: 1,  likeCount: 1, commentCount: 3, commentLikeCount: 0 },
-      { tagId: 9,  tagName: '일상',   primarySource: 'FEED',         totalCount: 20, diaryCount: 4,  feedCount: 12, likeCount: 2, commentCount: 2, commentLikeCount: 0 },
-      { tagId: 10, tagName: '감정',   primarySource: 'DIARY',        totalCount: 10, diaryCount: 7,  feedCount: 2,  likeCount: 1, commentCount: 0, commentLikeCount: 0 },
-      { tagId: 11, tagName: '제주',   primarySource: 'DIARY',        totalCount: 5,  diaryCount: 4,  feedCount: 1,  likeCount: 0, commentCount: 0, commentLikeCount: 0 },
-      { tagId: 12, tagName: '산책',   primarySource: 'FEED',         totalCount: 8,  diaryCount: 2,  feedCount: 5,  likeCount: 1, commentCount: 0, commentLikeCount: 0 },
-      { tagId: 13, tagName: '커피',   primarySource: 'COMMENT_LIKE', totalCount: 4,  diaryCount: 0,  feedCount: 1,  likeCount: 1, commentCount: 1, commentLikeCount: 1 },
-    ],
-    edges: [
-      { tagIdA: 1,  tagIdB: 11, totalWeight: 4, sourceWeights: [{ sourceType: 'DIARY', weight: 4 }] },
-      { tagIdA: 1,  tagIdB: 12, totalWeight: 3, sourceWeights: [{ sourceType: 'DIARY', weight: 2 }, { sourceType: 'FEED', weight: 1 }] },
-      { tagIdA: 3,  tagIdB: 4,  totalWeight: 5, sourceWeights: [{ sourceType: 'DIARY', weight: 5 }] },
-      { tagIdA: 3,  tagIdB: 7,  totalWeight: 3, sourceWeights: [{ sourceType: 'LIKE', weight: 3 }] },
-      { tagIdA: 3,  tagIdB: 13, totalWeight: 2, sourceWeights: [{ sourceType: 'COMMENT_LIKE', weight: 2 }] },
-      { tagIdA: 2,  tagIdB: 10, totalWeight: 4, sourceWeights: [{ sourceType: 'FEED', weight: 3 }, { sourceType: 'DIARY', weight: 1 }] },
-      { tagIdA: 5,  tagIdB: 9,  totalWeight: 6, sourceWeights: [{ sourceType: 'FEED', weight: 6 }] },
-      { tagIdA: 9,  tagIdB: 2,  totalWeight: 3, sourceWeights: [{ sourceType: 'FEED', weight: 3 }] },
-      { tagIdA: 6,  tagIdB: 10, totalWeight: 3, sourceWeights: [{ sourceType: 'DIARY', weight: 3 }] },
-      { tagIdA: 8,  tagIdB: 9,  totalWeight: 2, sourceWeights: [{ sourceType: 'COMMENT', weight: 2 }] },
-      { tagIdA: 4,  tagIdB: 10, totalWeight: 2, sourceWeights: [{ sourceType: 'DIARY', weight: 2 }] },
-      { tagIdA: 7,  tagIdB: 9,  totalWeight: 3, sourceWeights: [{ sourceType: 'LIKE', weight: 2 }, { sourceType: 'FEED', weight: 1 }] },
-      { tagIdA: 12, tagIdB: 5,  totalWeight: 2, sourceWeights: [{ sourceType: 'FEED', weight: 2 }] },
-      { tagIdA: 12, tagIdB: 1,  totalWeight: 2, sourceWeights: [{ sourceType: 'DIARY', weight: 2 }] },
-    ],
-  },
-
-  '2026-03': {
-    nodes: [
-      { tagId: 4,  tagName: '독서',   primarySource: 'DIARY',        totalCount: 15, diaryCount: 11, feedCount: 3,  likeCount: 1, commentCount: 0, commentLikeCount: 0 },
-      { tagId: 10, tagName: '감정',   primarySource: 'DIARY',        totalCount: 14, diaryCount: 10, feedCount: 2,  likeCount: 2, commentCount: 0, commentLikeCount: 0 },
-      { tagId: 3,  tagName: '카페',   primarySource: 'DIARY',        totalCount: 12, diaryCount: 8,  feedCount: 3,  likeCount: 1, commentCount: 0, commentLikeCount: 0 },
-      { tagId: 6,  tagName: '감사',   primarySource: 'DIARY',        totalCount: 11, diaryCount: 9,  feedCount: 2,  likeCount: 0, commentCount: 0, commentLikeCount: 0 },
-      { tagId: 9,  tagName: '일상',   primarySource: 'FEED',         totalCount: 16, diaryCount: 3,  feedCount: 10, likeCount: 2, commentCount: 1, commentLikeCount: 0 },
-      { tagId: 2,  tagName: '번아웃', primarySource: 'FEED',         totalCount: 9,  diaryCount: 2,  feedCount: 5,  likeCount: 1, commentCount: 1, commentLikeCount: 0 },
-      { tagId: 8,  tagName: '요리',   primarySource: 'COMMENT',      totalCount: 7,  diaryCount: 1,  feedCount: 2,  likeCount: 1, commentCount: 3, commentLikeCount: 0 },
-      { tagId: 14, tagName: '봄',     primarySource: 'DIARY',        totalCount: 8,  diaryCount: 6,  feedCount: 1,  likeCount: 1, commentCount: 0, commentLikeCount: 0 },
-      { tagId: 15, tagName: '글쓰기', primarySource: 'DIARY',        totalCount: 6,  diaryCount: 5,  feedCount: 1,  likeCount: 0, commentCount: 0, commentLikeCount: 0 },
-    ],
-    edges: [
-      { tagIdA: 4,  tagIdB: 10, totalWeight: 6, sourceWeights: [{ sourceType: 'DIARY', weight: 6 }] },
-      { tagIdA: 4,  tagIdB: 3,  totalWeight: 4, sourceWeights: [{ sourceType: 'DIARY', weight: 4 }] },
-      { tagIdA: 6,  tagIdB: 10, totalWeight: 5, sourceWeights: [{ sourceType: 'DIARY', weight: 5 }] },
-      { tagIdA: 6,  tagIdB: 14, totalWeight: 3, sourceWeights: [{ sourceType: 'DIARY', weight: 3 }] },
-      { tagIdA: 9,  tagIdB: 2,  totalWeight: 4, sourceWeights: [{ sourceType: 'FEED', weight: 4 }] },
-      { tagIdA: 8,  tagIdB: 9,  totalWeight: 3, sourceWeights: [{ sourceType: 'COMMENT', weight: 3 }] },
-      { tagIdA: 14, tagIdB: 3,  totalWeight: 2, sourceWeights: [{ sourceType: 'DIARY', weight: 2 }] },
-      { tagIdA: 15, tagIdB: 4,  totalWeight: 3, sourceWeights: [{ sourceType: 'DIARY', weight: 3 }] },
-    ],
-  },
-
-  '2026': {
-    nodes: [
-      { tagId: 9,  tagName: '일상',   primarySource: 'FEED',         totalCount: 87, diaryCount: 18, feedCount: 52, likeCount: 10, commentCount: 7, commentLikeCount: 0 },
-      { tagId: 1,  tagName: '여행',   primarySource: 'DIARY',        totalCount: 65, diaryCount: 42, feedCount: 15, likeCount: 5,  commentCount: 3, commentLikeCount: 0 },
-      { tagId: 10, tagName: '감정',   primarySource: 'DIARY',        totalCount: 58, diaryCount: 40, feedCount: 10, likeCount: 5,  commentCount: 3, commentLikeCount: 0 },
-      { tagId: 3,  tagName: '카페',   primarySource: 'DIARY',        totalCount: 52, diaryCount: 32, feedCount: 12, likeCount: 5,  commentCount: 3, commentLikeCount: 0 },
-      { tagId: 5,  tagName: '운동',   primarySource: 'FEED',         totalCount: 48, diaryCount: 8,  feedCount: 30, likeCount: 6,  commentCount: 4, commentLikeCount: 0 },
-      { tagId: 4,  tagName: '독서',   primarySource: 'DIARY',        totalCount: 44, diaryCount: 30, feedCount: 9,  likeCount: 4,  commentCount: 1, commentLikeCount: 0 },
-      { tagId: 2,  tagName: '번아웃', primarySource: 'FEED',         totalCount: 39, diaryCount: 10, feedCount: 22, likeCount: 5,  commentCount: 2, commentLikeCount: 0 },
-      { tagId: 6,  tagName: '감사',   primarySource: 'DIARY',        totalCount: 33, diaryCount: 24, feedCount: 5,  likeCount: 3,  commentCount: 1, commentLikeCount: 0 },
-      { tagId: 7,  tagName: '음악',   primarySource: 'LIKE',         totalCount: 30, diaryCount: 4,  feedCount: 8,  likeCount: 15, commentCount: 3, commentLikeCount: 0 },
-      { tagId: 12, tagName: '산책',   primarySource: 'FEED',         totalCount: 28, diaryCount: 7,  feedCount: 17, likeCount: 3,  commentCount: 1, commentLikeCount: 0 },
-      { tagId: 8,  tagName: '요리',   primarySource: 'COMMENT',      totalCount: 22, diaryCount: 4,  feedCount: 6,  likeCount: 4,  commentCount: 8, commentLikeCount: 0 },
-      { tagId: 11, tagName: '제주',   primarySource: 'DIARY',        totalCount: 18, diaryCount: 13, feedCount: 4,  likeCount: 1,  commentCount: 0, commentLikeCount: 0 },
-      { tagId: 14, tagName: '봄',     primarySource: 'DIARY',        totalCount: 15, diaryCount: 11, feedCount: 3,  likeCount: 1,  commentCount: 0, commentLikeCount: 0 },
-      { tagId: 13, tagName: '커피',   primarySource: 'COMMENT_LIKE', totalCount: 12, diaryCount: 1,  feedCount: 3,  likeCount: 4,  commentCount: 2, commentLikeCount: 2 },
-      { tagId: 15, tagName: '글쓰기', primarySource: 'DIARY',        totalCount: 10, diaryCount: 8,  feedCount: 2,  likeCount: 0,  commentCount: 0, commentLikeCount: 0 },
-    ],
-    edges: [
-      { tagIdA: 1,  tagIdB: 11, totalWeight: 12, sourceWeights: [{ sourceType: 'DIARY', weight: 12 }] },
-      { tagIdA: 1,  tagIdB: 12, totalWeight: 9,  sourceWeights: [{ sourceType: 'DIARY', weight: 6 }, { sourceType: 'FEED', weight: 3 }] },
-      { tagIdA: 3,  tagIdB: 4,  totalWeight: 14, sourceWeights: [{ sourceType: 'DIARY', weight: 14 }] },
-      { tagIdA: 3,  tagIdB: 7,  totalWeight: 8,  sourceWeights: [{ sourceType: 'LIKE', weight: 8 }] },
-      { tagIdA: 3,  tagIdB: 13, totalWeight: 5,  sourceWeights: [{ sourceType: 'COMMENT_LIKE', weight: 5 }] },
-      { tagIdA: 2,  tagIdB: 10, totalWeight: 11, sourceWeights: [{ sourceType: 'FEED', weight: 8 }, { sourceType: 'DIARY', weight: 3 }] },
-      { tagIdA: 5,  tagIdB: 9,  totalWeight: 18, sourceWeights: [{ sourceType: 'FEED', weight: 18 }] },
-      { tagIdA: 9,  tagIdB: 2,  totalWeight: 10, sourceWeights: [{ sourceType: 'FEED', weight: 10 }] },
-      { tagIdA: 6,  tagIdB: 10, totalWeight: 9,  sourceWeights: [{ sourceType: 'DIARY', weight: 9 }] },
-      { tagIdA: 8,  tagIdB: 9,  totalWeight: 6,  sourceWeights: [{ sourceType: 'COMMENT', weight: 6 }] },
-      { tagIdA: 4,  tagIdB: 10, totalWeight: 8,  sourceWeights: [{ sourceType: 'DIARY', weight: 8 }] },
-      { tagIdA: 7,  tagIdB: 9,  totalWeight: 7,  sourceWeights: [{ sourceType: 'LIKE', weight: 5 }, { sourceType: 'FEED', weight: 2 }] },
-      { tagIdA: 12, tagIdB: 5,  totalWeight: 6,  sourceWeights: [{ sourceType: 'FEED', weight: 6 }] },
-      { tagIdA: 12, tagIdB: 1,  totalWeight: 7,  sourceWeights: [{ sourceType: 'DIARY', weight: 7 }] },
-      { tagIdA: 14, tagIdB: 3,  totalWeight: 5,  sourceWeights: [{ sourceType: 'DIARY', weight: 5 }] },
-      { tagIdA: 15, tagIdB: 4,  totalWeight: 6,  sourceWeights: [{ sourceType: 'DIARY', weight: 6 }] },
-      { tagIdA: 6,  tagIdB: 14, totalWeight: 4,  sourceWeights: [{ sourceType: 'DIARY', weight: 4 }] },
-    ],
-  },
-};
-
-const WEEK_DATASET: MockDataset = {
-  nodes: [
-    { tagId: 9,  tagName: '일상',   primarySource: 'FEED',  totalCount: 5, diaryCount: 1, feedCount: 3, likeCount: 1, commentCount: 0, commentLikeCount: 0 },
-    { tagId: 3,  tagName: '카페',   primarySource: 'DIARY', totalCount: 4, diaryCount: 3, feedCount: 1, likeCount: 0, commentCount: 0, commentLikeCount: 0 },
-    { tagId: 5,  tagName: '운동',   primarySource: 'FEED',  totalCount: 3, diaryCount: 0, feedCount: 2, likeCount: 1, commentCount: 0, commentLikeCount: 0 },
-    { tagId: 10, tagName: '감정',   primarySource: 'DIARY', totalCount: 3, diaryCount: 2, feedCount: 1, likeCount: 0, commentCount: 0, commentLikeCount: 0 },
-    { tagId: 4,  tagName: '독서',   primarySource: 'DIARY', totalCount: 2, diaryCount: 2, feedCount: 0, likeCount: 0, commentCount: 0, commentLikeCount: 0 },
-  ],
-  edges: [
-    { tagIdA: 3,  tagIdB: 4, totalWeight: 2, sourceWeights: [{ sourceType: 'DIARY', weight: 2 }] },
-    { tagIdA: 9,  tagIdB: 5, totalWeight: 2, sourceWeights: [{ sourceType: 'FEED', weight: 2 }] },
-    { tagIdA: 10, tagIdB: 3, totalWeight: 1, sourceWeights: [{ sourceType: 'DIARY', weight: 1 }] },
-  ],
-};
-
-const DAY_DATASET: MockDataset = {
-  nodes: [
-    { tagId: 9,  tagName: '일상', primarySource: 'FEED',  totalCount: 2, diaryCount: 0, feedCount: 1, likeCount: 1, commentCount: 0, commentLikeCount: 0 },
-    { tagId: 3,  tagName: '카페', primarySource: 'DIARY', totalCount: 1, diaryCount: 1, feedCount: 0, likeCount: 0, commentCount: 0, commentLikeCount: 0 },
-    { tagId: 10, tagName: '감정', primarySource: 'DIARY', totalCount: 1, diaryCount: 1, feedCount: 0, likeCount: 0, commentCount: 0, commentLikeCount: 0 },
-  ],
-  edges: [
-    { tagIdA: 3, tagIdB: 10, totalWeight: 1, sourceWeights: [{ sourceType: 'DIARY', weight: 1 }] },
-  ],
-};
-
-function getPeriodKey(periodType: PeriodType, baseDate: Date): string {
-  if (periodType === 'year') return format(baseDate, 'yyyy');
-  if (periodType === 'month') return format(baseDate, 'yyyy-MM');
-  const monday = startOfWeek(baseDate, { weekStartsOn: 1 });
-  return `week-${format(monday, 'yyyy-MM-dd')}`;
-}
-
-function getDataset(periodType: PeriodType, baseDate: Date): MockDataset {
-  if (periodType === 'day') return DAY_DATASET;
-  if (periodType === 'week') return WEEK_DATASET;
-  if (periodType === 'custom') return WEEK_DATASET;
-  const key = getPeriodKey(periodType, baseDate);
-  return DATASETS[key] ?? DATASETS['2026-04'];
+function buildPeriodParams(
+  periodType: PeriodType,
+  baseDate: Date,
+  customRange?: CustomRange,
+): GetMindmapParams {
+  if (periodType === 'day') {
+    return { periodType: 'day', period: format(baseDate, 'yyyy-MM-dd') };
+  }
+  if (periodType === 'week') {
+    const monday = startOfWeek(baseDate, { weekStartsOn: 1 });
+    return { periodType: 'week', period: format(monday, 'yyyy-MM-dd') };
+  }
+  if (periodType === 'month') {
+    return { periodType: 'month', period: format(baseDate, 'yyyy-MM') };
+  }
+  if (periodType === 'year') {
+    return { periodType: 'year', period: format(baseDate, 'yyyy') };
+  }
+  // custom: from 날짜 기준 month 폴백
+  const refDate = customRange?.from ?? baseDate;
+  return { periodType: 'month', period: format(refDate, 'yyyy-MM') };
 }
 
 // ── Legend ───────────────────────────────────────────────────────────────────
@@ -191,27 +69,32 @@ export default function MindmapPage() {
   const [panel, setPanel] = useState<PanelState>({ kind: 'none' });
   const [showLegend, setShowLegend] = useState(false);
 
-  const dataset = useMemo(
-    () => getDataset(periodType, baseDate),
-    [periodType, baseDate],
+  const periodParams = useMemo(
+    () => buildPeriodParams(periodType, baseDate, customRange),
+    [periodType, baseDate, customRange],
   );
+
+  const { data, isLoading, isError } = useMindmap(periodParams);
+
+  const allNodes = data?.nodes ?? [];
+  const allEdges = data?.edges ?? [];
 
   const filteredNodes = useMemo(
     () =>
       sourceFilter === 'all'
-        ? dataset.nodes
-        : dataset.nodes.filter((n) => n.primarySource === sourceFilter),
-    [dataset, sourceFilter],
+        ? allNodes
+        : allNodes.filter((n) => n.primarySource === sourceFilter),
+    [allNodes, sourceFilter],
   );
 
   const filteredEdges = useMemo(() => {
     const ids = new Set(filteredNodes.map((n) => n.tagId));
-    return dataset.edges.filter((e) => ids.has(e.tagIdA) && ids.has(e.tagIdB));
-  }, [dataset, filteredNodes]);
+    return allEdges.filter((e) => ids.has(e.tagIdA) && ids.has(e.tagIdB));
+  }, [allEdges, filteredNodes]);
 
   const nodeMap = useMemo(
-    () => new Map(dataset.nodes.map((n) => [n.tagId, n])),
-    [dataset],
+    () => new Map(allNodes.map((n) => [n.tagId, n])),
+    [allNodes],
   );
 
   const handleNodeClick = useCallback((node: NodeResponse) => {
@@ -241,9 +124,8 @@ export default function MindmapPage() {
 
   return (
     <div className="flex flex-col" style={{ height: 'calc(100dvh - 56px)' }}>
-      {/* Toolbar — 항상 2행 고정 */}
+      {/* Toolbar */}
       <div className="flex-shrink-0 bg-surface border-b border-border px-4 pt-2.5 pb-2 flex flex-col gap-1.5">
-        {/* 행 1: 기간 필터 + 범례 */}
         <div className="flex items-center justify-between gap-2 min-w-0">
           <div className="min-w-0 overflow-hidden">
             <PeriodFilter
@@ -255,7 +137,6 @@ export default function MindmapPage() {
               onCustomRangeChange={(r) => { setCustomRange(r); resetPanel(); }}
             />
           </div>
-          {/* 범례 */}
           <div className="relative flex-shrink-0">
             <button
               onClick={() => setShowLegend((v) => !v)}
@@ -291,7 +172,6 @@ export default function MindmapPage() {
             )}
           </div>
         </div>
-        {/* 행 2: 소스 필터 */}
         <SourceFilter value={sourceFilter} onChange={setSourceFilter} />
       </div>
 
@@ -303,7 +183,20 @@ export default function MindmapPage() {
           style={{ background: 'radial-gradient(ellipse 80% 70% at 50% 50%, #F4F2EE 0%, #EFEDE8 100%)' }}
           onClick={() => setPanel({ kind: 'none' })}
         >
-          {filteredNodes.length === 0 ? (
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center h-full gap-3">
+              <Loader2 size={28} className="animate-spin text-muted" />
+              <p className="text-sm text-sub">마인드맵 불러오는 중…</p>
+            </div>
+          ) : isError ? (
+            <div className="flex flex-col items-center justify-center h-full gap-3 text-center">
+              <div className="w-16 h-16 rounded-full bg-surface flex items-center justify-center shadow-card">
+                <span className="text-3xl">⚠️</span>
+              </div>
+              <p className="text-sm font-semibold text-text">데이터를 불러올 수 없어요</p>
+              <p className="text-xs text-sub max-w-[200px]">잠시 후 다시 시도해 주세요.</p>
+            </div>
+          ) : filteredNodes.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full gap-3 text-center">
               <div className="w-16 h-16 rounded-full bg-surface flex items-center justify-center shadow-card">
                 <span className="text-3xl">🌱</span>
@@ -325,7 +218,7 @@ export default function MindmapPage() {
           )}
         </div>
 
-        {/* Side panel — right on desktop, bottom on mobile */}
+        {/* Side panel */}
         <div
           className={[
             'flex-shrink-0 transition-all duration-300 overflow-hidden',
@@ -337,10 +230,21 @@ export default function MindmapPage() {
         >
           <div className="w-full md:w-72 h-full">
             {panel.kind === 'node' && (
-              <TagDetailPanel node={panel.node} onClose={handleClose} />
+              <TagDetailPanel
+                node={panel.node}
+                onClose={handleClose}
+                periodType={periodParams.periodType}
+                period={periodParams.period}
+              />
             )}
             {panel.kind === 'edge' && (
-              <EdgeDetailPanel edge={panel.edge} nodeMap={nodeMap} onClose={handleClose} />
+              <EdgeDetailPanel
+                edge={panel.edge}
+                nodeMap={nodeMap}
+                onClose={handleClose}
+                periodType={periodParams.periodType}
+                period={periodParams.period}
+              />
             )}
           </div>
         </div>
