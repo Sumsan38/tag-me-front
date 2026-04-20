@@ -438,6 +438,18 @@
   - 우측 또는 하단에 `TagDetailPanel` (사이드 패널)
   - 태그 없을 때 빈 상태 UI ("일기를 쓰거나 피드에서 좋아요를 눌러보세요!")
 
+**마인드맵 엣지 드릴다운 소스 타입별 필터 탭**
+
+> 백엔드 선행 조건: `GET /api/v1/mindmap/edges/contents`에 `sourceType` 쿼리 파라미터 추가 필요.
+
+- [ ] `api/mindmap.ts` — `getEdgeContents` 파라미터에 `sourceType?` 추가
+- [ ] `hooks/useMindmap.ts` — `useEdgeContents` 파라미터에 `sourceType?` 전달
+- [ ] `EdgeDetailPanel.tsx` 수정:
+  - `sourceWeights`에서 weight > 0인 소스만 탭으로 노출 (일기 / 피드 / 좋아요 / 댓글 / 댓글좋아요)
+  - 기본 선택: weight가 가장 높은 소스 타입
+  - 탭 선택 시 해당 `sourceType`으로 콘텐츠 재요청 + 목록 교체
+  - `TagDetailPanel`의 탭 UI 패턴과 동일하게 적용
+
 **이미지 업로드 유틸**
 - [ ] `utils/upload.ts` 작성:
   - `getPresignedUrl(fileName, contentType)` → Pre-signed URL 요청
