@@ -396,13 +396,13 @@
 > 기존 Phase 4(11~12주차)에서 이동 (2026-04-08).
 
 **API + 훅**
-- [ ] `api/mindmap.ts` 작성:
+- [x] `api/mindmap.ts` 작성:
   - `getMindmap(period, periodType, source)` → GET `/api/v1/mindmap`
   - `getTagDetail(tagId, source)` → GET `/api/v1/mindmap/tags/{tagId}`
-- [ ] `hooks/useMindmap.ts`: `useMindmap(params)` — query
+- [x] `hooks/useMindmap.ts`: `useMindmap(params)` — query
 
 **D3.js 마인드맵 컴포넌트**
-- [ ] **`MindmapVisualization` 컴포넌트** (`components/mindmap/MindmapVisualization.tsx`):
+- [x] **`MindmapVisualization` 컴포넌트** (`components/mindmap/MindmapVisualization.tsx`):
   - Force-directed graph 레이아웃 (D3 force simulation)
   - **노드(태그)**: 원형 노드, 크기 = totalCount 비례, 텍스트 라벨
   - **노드 색상 — 태그 출처 시각화**:
@@ -419,24 +419,36 @@
   - 노드 드래그 가능
   - 노드 hover 시 툴팁 (태그명, 출처별 count)
   - **노드 클릭 시 태그 상세 패널** 열기
-- [ ] **기간 필터 컴포넌트** (`components/mindmap/PeriodFilter.tsx`):
+- [x] **기간 필터 컴포넌트** (`components/mindmap/PeriodFilter.tsx`):
   - 주 / 월 / 년 단위 전환 버튼
   - 이전/다음 기간 이동 화살표
   - 현재 선택된 기간 표시
-- [ ] **출처 필터 컴포넌트** (`components/mindmap/SourceFilter.tsx`):
+- [x] **출처 필터 컴포넌트** (`components/mindmap/SourceFilter.tsx`):
   - 전체 / 직접 작성 / 좋아요 / 댓글 필터 토글 버튼
   - 선택된 필터에 맞게 마인드맵 노드/엣지 필터링
-- [ ] **태그 상세 패널 컴포넌트** (`components/mindmap/TagDetailPanel.tsx`):
+- [x] **태그 상세 패널 컴포넌트** (`components/mindmap/TagDetailPanel.tsx`):
   - 태그명 + 출처별 count (diary: N, feed: N, like: N, comment: N)
   - 탭: 일기 / 게시글 / 좋아요 / 댓글
   - 각 탭에서 해당 태그가 포함된 콘텐츠 리스트
   - 리스트 항목 클릭 시 해당 콘텐츠로 이동
 
 **마인드맵 페이지 (CSR — 인터랙티브 시각화)**
-- [ ] **마인드맵 페이지** (`src/app/(auth)/mindmap/page.tsx`):
+- [x] **마인드맵 페이지** (`src/app/(auth)/mindmap/page.tsx`):
   - `MindmapVisualization` + `PeriodFilter` + `SourceFilter` 조합
   - 우측 또는 하단에 `TagDetailPanel` (사이드 패널)
   - 태그 없을 때 빈 상태 UI ("일기를 쓰거나 피드에서 좋아요를 눌러보세요!")
+
+**마인드맵 엣지 드릴다운 소스 타입별 필터 탭**
+
+> 백엔드 선행 조건: `GET /api/v1/mindmap/edges/contents`에 `sourceType` 쿼리 파라미터 추가 필요.
+
+- [ ] `api/mindmap.ts` — `getEdgeContents` 파라미터에 `sourceType?` 추가
+- [ ] `hooks/useMindmap.ts` — `useEdgeContents` 파라미터에 `sourceType?` 전달
+- [ ] `EdgeDetailPanel.tsx` 수정:
+  - `sourceWeights`에서 weight > 0인 소스만 탭으로 노출 (일기 / 피드 / 좋아요 / 댓글 / 댓글좋아요)
+  - 기본 선택: weight가 가장 높은 소스 타입
+  - 탭 선택 시 해당 `sourceType`으로 콘텐츠 재요청 + 목록 교체
+  - `TagDetailPanel`의 탭 UI 패턴과 동일하게 적용
 
 **이미지 업로드 유틸**
 - [ ] `utils/upload.ts` 작성:

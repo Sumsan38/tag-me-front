@@ -47,8 +47,9 @@ export default function AuthGroupLayout({
   }
 
   const isDiaryRoute = pathname.startsWith('/diary');
+  const isMindmapRoute = pathname.startsWith('/mindmap');
   return (
-    <MainLayout contentMaxWidth={isDiaryRoute ? 'max-w-6xl' : undefined}>
+    <MainLayout contentMaxWidth={isMindmapRoute ? 'max-w-full' : isDiaryRoute ? 'max-w-6xl' : undefined}>
       {children}
     </MainLayout>
   );
