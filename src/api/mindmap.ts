@@ -50,6 +50,7 @@ export interface GetTagContentsParams {
 export interface GetEdgeContentsParams {
   tagIdA: number;
   tagIdB: number;
+  sourceType?: string;
   periodType?: string;
   period?: string;
   cursor?: string;

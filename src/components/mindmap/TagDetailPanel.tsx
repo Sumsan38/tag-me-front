@@ -6,6 +6,7 @@ import type { NodeResponse, PrimarySource } from './MindmapVisualization';
 import { SOURCE_STYLES } from './MindmapVisualization';
 import ContentItemCard from './ContentItemCard';
 import { useTagContents } from '@/hooks/useMindmap';
+import { useDragScroll } from '@/hooks/useDragScroll';
 
 // ── Tab 정의 ─────────────────────────────────────────────────────────────────
 
@@ -36,6 +37,8 @@ interface Props {
 
 export default function TagDetailPanel({ node, onClose, periodType, period }: Props) {
   const [activeTab, setActiveTab] = useState<PrimarySource>('DIARY');
+  const dragScroll = useDragScroll();
+  const dragScrollV = useDragScroll('vertical');
 
   const visibleTabs = node
     ? TABS.filter((t) => (node[t.countKey] as number) > 0)
@@ -127,7 +130,14 @@ export default function TagDetailPanel({ node, onClose, periodType, period }: Pr
       {/* Tabs */}
       {visibleTabs.length > 0 && (
         <>
-          <div className="flex-shrink-0 flex border-b border-border overflow-x-auto">
+          <div
+            ref={dragScroll.ref}
+            onMouseDown={dragScroll.onMouseDown}
+            onMouseMove={dragScroll.onMouseMove}
+            onMouseUp={dragScroll.onMouseUp}
+            onMouseLeave={dragScroll.onMouseLeave}
+            className="flex-shrink-0 flex border-b border-border overflow-x-auto select-none"
+          >
             {visibleTabs.map((t) => {
               const isActive = resolvedTab === t.value;
               const s = SOURCE_STYLES[t.value];
@@ -155,7 +165,14 @@ export default function TagDetailPanel({ node, onClose, periodType, period }: Pr
           </div>
 
           {/* Content list */}
-          <div className="flex-1 overflow-y-auto">
+          <div
+            ref={dragScrollV.ref}
+            onMouseDown={dragScrollV.onMouseDown}
+            onMouseMove={dragScrollV.onMouseMove}
+            onMouseUp={dragScrollV.onMouseUp}
+            onMouseLeave={dragScrollV.onMouseLeave}
+            className="flex-1 overflow-y-auto select-none"
+          >
             {isLoading ? (
               <div className="flex justify-center py-10">
                 <Loader2 size={20} className="animate-spin text-muted" />
