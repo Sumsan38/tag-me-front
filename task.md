@@ -442,9 +442,9 @@
 
 > 백엔드 선행 조건: `GET /api/v1/mindmap/edges/contents`에 `sourceType` 쿼리 파라미터 추가 필요.
 
-- [ ] `api/mindmap.ts` — `getEdgeContents` 파라미터에 `sourceType?` 추가
-- [ ] `hooks/useMindmap.ts` — `useEdgeContents` 파라미터에 `sourceType?` 전달
-- [ ] `EdgeDetailPanel.tsx` 수정:
+- [x] `api/mindmap.ts` — `getEdgeContents` 파라미터에 `sourceType?` 추가
+- [x] `hooks/useMindmap.ts` — `useEdgeContents` 파라미터에 `sourceType?` 전달
+- [x] `EdgeDetailPanel.tsx` 수정:
   - `sourceWeights`에서 weight > 0인 소스만 탭으로 노출 (일기 / 피드 / 좋아요 / 댓글 / 댓글좋아요)
   - 기본 선택: weight가 가장 높은 소스 타입
   - 탭 선택 시 해당 `sourceType`으로 콘텐츠 재요청 + 목록 교체
