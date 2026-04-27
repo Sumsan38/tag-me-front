@@ -492,13 +492,13 @@
 - [x] 대댓글 작성 입력: "답글 달기" 클릭 시 해당 댓글 하단에 입력창 노출
 
 **알림 타입 확장**
-- [ ] `types/notification.ts`에 `REPLY`, `COMMENT_LIKE` 알림 타입 추가
-- [ ] 알림 목록에서 대댓글/댓글 좋아요 알림 렌더링 처리
+- [x] `types/notification.ts`에 `REPLY`, `COMMENT_LIKE` 알림 타입 추가
+- [x] 알림 목록에서 대댓글/댓글 좋아요 알림 렌더링 처리
 
 **테스트**
-- [ ] API 함수 테스트: getReplies, likeComment, unlikeComment
-- [ ] 훅 테스트: useReplies, useLikeComment (optimistic update 포함)
-- [ ] 컴포넌트 테스트: 대댓글 토글, 댓글 좋아요 UI, 삭제된 부모 댓글 표시
+- [x] API 함수 테스트: getReplies, likeComment, unlikeComment
+- [x] 훅 테스트: useReplies, useLikeComment (optimistic update 포함)
+- [x] 컴포넌트 테스트: 대댓글 토글, 댓글 좋아요 UI, 삭제된 부모 댓글 표시
 
 ### 8주차 — 태그 자동완성 + 검색 (Tag + Search 도메인)
 
