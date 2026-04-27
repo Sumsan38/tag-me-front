@@ -82,6 +82,8 @@ export default function CommentItem({
   }
 
   const authorLabel = comment.authorNickname || '탈퇴한 사용자';
+  // isDeleted 플래그 또는 content 빈 문자열로 삭제 상태를 판단한다.
+  const isDeleted = comment.isDeleted === true || (!comment.isDeleted && comment.content === '');
 
   return (
     <div>
@@ -101,8 +103,8 @@ export default function CommentItem({
                 locale: ko,
               })}
             </span>
-            {/* Delete (own comment only) */}
-            {currentUserId === comment.userId && (
+            {/* 삭제된 댓글에는 삭제 버튼을 표시하지 않는다 */}
+            {!isDeleted && currentUserId === comment.userId && (
               <button
                 type="button"
                 onClick={() =>
@@ -121,38 +123,46 @@ export default function CommentItem({
           </div>
 
           {/* Content */}
-          <p className="mt-0.5 text-[13px] leading-relaxed text-sub">{comment.content}</p>
+          {isDeleted ? (
+            <p className="mt-0.5 text-[13px] leading-relaxed text-gray-400 italic">
+              삭제된 댓글입니다.
+            </p>
+          ) : (
+            <p className="mt-0.5 text-[13px] leading-relaxed text-sub">{comment.content}</p>
+          )}
 
-          {/* Action row */}
-          <div className="flex items-center gap-3 mt-1.5">
-            {/* Like */}
-            <button
-              type="button"
-              onClick={handleLikeToggle}
-              disabled={!isAuthenticated}
-              className="flex items-center gap-1 text-xs text-muted hover:text-red-500 transition-colors disabled:opacity-40"
-              aria-label={comment.likedByMe ? '좋아요 취소' : '좋아요'}
-            >
-              <Heart
-                size={12}
-                className={comment.likedByMe ? 'fill-red-500 text-red-500' : ''}
-              />
-              {comment.likeCount > 0 && <span>{comment.likeCount}</span>}
-            </button>
-
-            {/* 답글 달기 (최상위 댓글만) */}
-            {!isReply && isAuthenticated && (
+          {/* 삭제된 댓글에는 좋아요·답글 달기 버튼을 표시하지 않는다 */}
+          {!isDeleted && (
+            <div className="flex items-center gap-3 mt-1.5">
+              {/* Like */}
               <button
                 type="button"
-                onClick={() => setShowReplyInput((v) => !v)}
-                className="text-xs text-muted hover:text-accent transition-colors"
+                onClick={handleLikeToggle}
+                disabled={!isAuthenticated}
+                className="flex items-center gap-1 text-xs text-muted hover:text-red-500 transition-colors disabled:opacity-40"
+                aria-label={comment.likedByMe ? '좋아요 취소' : '좋아요'}
               >
-                답글 달기
+                <Heart
+                  size={12}
+                  className={comment.likedByMe ? 'fill-red-500 text-red-500' : ''}
+                />
+                {comment.likeCount > 0 && <span>{comment.likeCount}</span>}
               </button>
-            )}
-          </div>
 
-          {/* 대댓글 N개 보기 (최상위 댓글만) */}
+              {/* 답글 달기 (최상위 댓글만) */}
+              {!isReply && isAuthenticated && (
+                <button
+                  type="button"
+                  onClick={() => setShowReplyInput((v) => !v)}
+                  className="text-xs text-muted hover:text-accent transition-colors"
+                >
+                  답글 달기
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* 대댓글 N개 보기 (최상위 댓글만 — 삭제 여부와 무관하게 대댓글은 표시) */}
           {!isReply && comment.replyCount > 0 && (
             <button
               type="button"

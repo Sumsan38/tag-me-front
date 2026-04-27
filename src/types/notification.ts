@@ -21,6 +21,8 @@
  *   - 'new_follower'       : 새 팔로워 알림
  *   - 'feed_liked'         : 내 게시글 좋아요 알림
  *   - 'feed_commented'     : 내 게시글 댓글 알림
+ *   - 'reply'              : 내 댓글에 대댓글이 달린 알림 (payload: feedId, commentId, actorId, actorNickname)
+ *   - 'comment_like'       : 내 댓글에 좋아요가 달린 알림 (payload: feedId, commentId, actorId, actorNickname)
  */
 export type NotificationType =
   | 'streak_reminder'
@@ -29,7 +31,9 @@ export type NotificationType =
   | 'challenge_complete'
   | 'new_follower'
   | 'feed_liked'
-  | 'feed_commented';
+  | 'feed_commented'
+  | 'reply'
+  | 'comment_like';
 
 // ---------------------------------------------------------------------------
 // 알림 엔티티
@@ -42,6 +46,8 @@ export type NotificationType =
  *   - 'new_follower' → userId
  *   - 'challenge_complete' → challengeId
  *   - 'retrospect' → diaryId
+ *   - 'reply' → parentCommentId (대댓글이 달린 원본 댓글 ID)
+ *   - 'comment_like' → commentId (좋아요 받은 댓글 ID)
  *   - null이면 특정 리소스와 무관한 알림 (예: 'streak_reminder', 'trending_tag')
  */
 export interface Notification {

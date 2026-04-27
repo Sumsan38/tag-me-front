@@ -469,27 +469,27 @@
 - `CommentResponse`에 `parentId`, `replyCount`, `likeCount`, `likedByMe` 포함
 
 **API 함수 (`api/feed.ts` 확장)**
-- [ ] `getReplies(feedId, commentId, cursor)` → `GET /api/v1/feeds/{feedId}/comments/{commentId}/replies`
-- [ ] `likeComment(feedId, commentId)` → `POST /api/v1/feeds/{feedId}/comments/{commentId}/likes`
-- [ ] `unlikeComment(feedId, commentId)` → `DELETE /api/v1/feeds/{feedId}/comments/{commentId}/likes`
-- [ ] `createComment` 요청에 `parentCommentId` 옵션 필드 추가
+- [x] `getReplies(feedId, commentId, cursor)` → `GET /api/v1/feeds/{feedId}/comments/{commentId}/replies`
+- [x] `likeComment(feedId, commentId)` → `POST /api/v1/feeds/{feedId}/comments/{commentId}/likes`
+- [x] `unlikeComment(feedId, commentId)` → `DELETE /api/v1/feeds/{feedId}/comments/{commentId}/likes`
+- [x] `createComment` 요청에 `parentCommentId` 옵션 필드 추가
 
 **타입 정의 (`types/feed.ts` 확장)**
-- [ ] `CommentResponse`에 `parentId`, `replyCount`, `likeCount`, `likedByMe` 필드 추가
-- [ ] `CreateCommentRequest`에 `parentCommentId?` 필드 추가
+- [x] `CommentResponse`에 `parentId`, `replyCount`, `likeCount`, `likedByMe` 필드 추가
+- [x] `CreateCommentRequest`에 `parentCommentId?` 필드 추가
 
 **React Query 훅 (`hooks/useFeed.ts` 확장)**
-- [ ] `useReplies(feedId, commentId)` — infinite query (오래된 순)
-- [ ] `useCreateReply()` — mutation (대댓글 작성)
-- [ ] `useLikeComment()` — mutation + optimistic update (하트 토글 + 좋아요 수)
-- [ ] `useUnlikeComment()` — mutation + optimistic update
+- [x] `useReplies(feedId, commentId)` — infinite query (오래된 순)
+- [x] `useCreateReply()` — mutation (대댓글 작성)
+- [x] `useLikeComment()` — mutation + optimistic update (하트 토글 + 좋아요 수)
+- [x] `useUnlikeComment()` — mutation + optimistic update
 
 **컴포넌트**
-- [ ] `CommentList.tsx` 수정: 각 댓글에 `replyCount` 표시 + "대댓글 N개 보기" 토글 버튼
-- [ ] `ReplyList.tsx` 신규: 대댓글 목록 (lazy load, 오래된 순, 무한 스크롤)
-- [ ] `CommentItem.tsx` 수정: 댓글 좋아요 버튼(하트 아이콘 + 좋아요 수), "답글 달기" 버튼
+- [x] `CommentList.tsx` 수정: 각 댓글에 `replyCount` 표시 + "대댓글 N개 보기" 토글 버튼
+- [x] `ReplyList.tsx` 신규: 대댓글 목록 (lazy load, 오래된 순, 무한 스크롤)
+- [x] `CommentItem.tsx` 신규: 댓글 좋아요 버튼(하트 아이콘 + 좋아요 수), "답글 달기" 버튼
 - [ ] 삭제된 부모 댓글 UI: "삭제된 댓글입니다" 회색 표시 + 대댓글은 정상 노출
-- [ ] 대댓글 작성 입력: "답글 달기" 클릭 시 해당 댓글 하단에 입력창 노출
+- [x] 대댓글 작성 입력: "답글 달기" 클릭 시 해당 댓글 하단에 입력창 노출
 
 **알림 타입 확장**
 - [ ] `types/notification.ts`에 `REPLY`, `COMMENT_LIKE` 알림 타입 추가

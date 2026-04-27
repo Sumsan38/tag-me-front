@@ -87,6 +87,10 @@ export interface CommentResponse {
   userId: number;
   /** 작성자 닉네임. 탈퇴한 사용자인 경우 빈 문자열("")로 반환됩니다. */
   authorNickname: string;
+  /**
+   * 댓글 본문. 소프트 삭제된 댓글은 isDeleted=true이며 content는 빈 문자열일 수 있습니다.
+   * isDeleted 여부로 판단하고 content 값에 의존하지 않을 것.
+   */
   content: string;
   createdAt: string; // ISO 8601
   /** 부모 댓글 ID. 최상위 댓글이면 null, 대댓글이면 부모 댓글 ID. */
@@ -96,6 +100,11 @@ export interface CommentResponse {
   likedByMe: boolean;
   /** 대댓글 수. 대댓글 항목에서는 항상 0. */
   replyCount: number;
+  /**
+   * 소프트 삭제 여부. 백엔드가 이 필드를 내려주지 않는 경우 undefined로 취급하며
+   * content가 빈 문자열인 경우와 함께 삭제 상태로 간주합니다.
+   */
+  isDeleted?: boolean;
 }
 
 export interface CommentListResponse {
