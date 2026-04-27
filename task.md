@@ -520,9 +520,9 @@
 > - `TagSuggestion.id`: 백엔드는 `tagId: number` — `string`에서 `number`로 변경 검토
 
 **API + 훅**
-- [ ] `api/tag.ts` 작성:
-  - `autocomplete(query)` → GET `/api/v1/tags/autocomplete?q=` — ✅ 백엔드 구현 완료
-  - `getRelatedTags(tagId)` → GET `/api/v1/tags/{id}/related` — ✅ 백엔드 구현 완료
+- [ ] `api/tag.ts` 작성: (partial — 백엔드 구현 완료 항목만 반영)
+  - `autocomplete(query)` → GET `/api/v1/tags/autocomplete?q=` — ✅ 프론트 구현 완료
+  - `getRelatedTags(tagId)` → GET `/api/v1/tags/{id}/related` — ✅ 프론트 구현 완료
   - `getTrending()` → GET `/api/v1/tags/trending` — ❌ 백엔드 미구현
   - `getDailyPrompt()` → GET `/api/v1/tags/daily-prompt` — ❌ 백엔드 미구현
 - [ ] `api/search.ts` 작성:
@@ -551,14 +551,14 @@
 
 > 기존 7~8주차에서 이동 (2026-04-08).
 
-- [ ] **좋아요 낙관적 업데이트 구현**:
+- [x] **좋아요 낙관적 업데이트 구현**:
   - 버튼 클릭 즉시 UI 반영 (하트 색상 변경 + 카운트 증가)
   - 서버 실패 시 자동 롤백
-  - 연타 방지 (debounce)
-- [ ] **댓글 컴포넌트** (`components/feed/CommentList.tsx`):
+  - 연타 방지 (isPending 가드로 중복 클릭 차단)
+- [x] **댓글 컴포넌트** (`components/feed/CommentList.tsx`):
   - 댓글 목록 (무한 스크롤)
   - 댓글 카드: 아바타 + 닉네임 + 내용 + 시간 + 삭제 버튼(본인만)
-  - 댓글 입력창 (하단 고정)
+  - 댓글 입력창 (sticky bottom)
 - [ ] **팔로우/언팔로우 기능**:
   - `api/social.ts`: `follow(userId)`, `unfollow(userId)`, `getFollowers(userId)`, `getFollowing(userId)`
   - `hooks/useFollow.ts`: `useFollow()`, `useUnfollow()` mutation

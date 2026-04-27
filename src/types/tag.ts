@@ -4,9 +4,9 @@
  * Tag 도메인 타입 정의.
  *
  * - TagValue: 태그 입력/표시 분리 (canonical vs display)
- * - TagAutoCompleteResponse / TagSuggestion: 태그 자동완성 응답
+ * - TagSuggestion: 태그 자동완성 응답
  * - TrendingTag: 트렌딩 태그 (ISR 1시간 갱신)
- * - RelatedTag: 마인드맵/태그 상세에서 함께 쓰이는 연관 태그
+ * - RelatedTagResponse: 연관 태그 API 응답
  * - DailyPrompt: 오늘의 태그 프롬프트 (기록 시작 장벽 제거용 리텐션 기능)
  */
 
@@ -60,17 +60,6 @@ export interface TrendingTag {
 // ---------------------------------------------------------------------------
 // 연관 태그
 // ---------------------------------------------------------------------------
-
-/**
- * 연관 태그.
- * 마인드맵 노드 클릭 시 상세 패널, 태그 검색 결과 화면 등에서 사용한다.
- * coOccurrenceCount는 해당 태그와 함께 등장한 횟수이다.
- */
-export interface RelatedTag {
-  id: string;
-  name: string;
-  coOccurrenceCount: number;
-}
 
 /**
  * 연관 태그 API 응답.

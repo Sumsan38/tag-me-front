@@ -4,12 +4,14 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { InfiniteData } from '@tanstack/react-query';
 import { createElement, type ReactNode } from 'react';
 import {
+  useLikeFeed,
+  useUnlikeFeed,
   useLikeComment,
   useUnlikeComment,
   useCreateReply,
   feedKeys,
 } from '@/hooks/useFeed';
-import type { CommentListResponse } from '@/types/feed';
+import type { CommentListResponse, FeedResponse, FeedListResponse } from '@/types/feed';
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -33,6 +35,8 @@ vi.mock('@/api/error', () => ({
 }));
 
 const mockFeedApi = vi.hoisted(() => ({
+  likeFeed: vi.fn(),
+  unlikeFeed: vi.fn(),
   likeComment: vi.fn(),
   unlikeComment: vi.fn(),
   createComment: vi.fn(),
@@ -90,8 +94,184 @@ const BASE_REPLY = {
 };
 
 // ---------------------------------------------------------------------------
+// 피드 좋아요 픽스처
+// ---------------------------------------------------------------------------
+
+const BASE_FEED: FeedResponse = {
+  id: 1,
+  userId: 100,
+  authorNickname: '작성자',
+  content: '피드 내용',
+  isPublic: true,
+  tags: [],
+  imageUrls: [],
+  likeCount: 5,
+  likedByMe: false,
+  commentCount: 0,
+  createdAt: '2026-04-01T10:00:00',
+  updatedAt: '2026-04-01T10:00:00',
+};
+
+function makeInfiniteFeedData(
+  items: FeedResponse[],
+): InfiniteData<FeedListResponse> {
+  return {
+    pages: [{ items, nextCursor: null, hasNext: false }],
+    pageParams: [undefined],
+  };
+}
+
+// ---------------------------------------------------------------------------
 // 테스트
 // ---------------------------------------------------------------------------
+
+describe('useFeed hooks — 피드 좋아요 낙관적 업데이트', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  // ---- useLikeFeed ----
+  describe('useLikeFeed', () => {
+    it('detail 캐시를 즉시 likedByMe=true, likeCount+1 로 업데이트한다', async () => {
+      mockFeedApi.likeFeed.mockResolvedValueOnce(undefined);
+      const { wrapper, queryClient } = createWrapper();
+
+      queryClient.setQueryData(feedKeys.detail(1), { ...BASE_FEED });
+
+      const { result } = renderHook(() => useLikeFeed(), { wrapper });
+      result.current.mutate(1);
+
+      await waitFor(() => {
+        const data = queryClient.getQueryData<FeedResponse>(feedKeys.detail(1));
+        expect(data?.likedByMe).toBe(true);
+        expect(data?.likeCount).toBe(6);
+      });
+    });
+
+    it('public 목록 캐시를 낙관적으로 업데이트한다', async () => {
+      mockFeedApi.likeFeed.mockResolvedValueOnce(undefined);
+      const { wrapper, queryClient } = createWrapper();
+
+      queryClient.setQueryData(feedKeys.public(), makeInfiniteFeedData([{ ...BASE_FEED }]));
+
+      const { result } = renderHook(() => useLikeFeed(), { wrapper });
+      result.current.mutate(1);
+
+      await waitFor(() => {
+        const data = queryClient.getQueryData<InfiniteData<FeedListResponse>>(feedKeys.public());
+        const item = data?.pages[0].items.find((i) => i.id === 1);
+        expect(item?.likedByMe).toBe(true);
+        expect(item?.likeCount).toBe(6);
+      });
+    });
+
+    it('API 실패 시 detail 캐시를 원래대로 롤백한다', async () => {
+      mockFeedApi.likeFeed.mockRejectedValueOnce(new Error('서버 오류'));
+      const { wrapper, queryClient } = createWrapper();
+
+      queryClient.setQueryData(feedKeys.detail(1), { ...BASE_FEED });
+
+      const { result } = renderHook(() => useLikeFeed(), { wrapper });
+      result.current.mutate(1);
+
+      await waitFor(() => result.current.isError);
+
+      const data = queryClient.getQueryData<FeedResponse>(feedKeys.detail(1));
+      expect(data?.likedByMe).toBe(false);
+      expect(data?.likeCount).toBe(5);
+      expect(mockToast.error).toHaveBeenCalledWith('서버 오류');
+    });
+
+    it('API 실패 시 public 목록 캐시를 롤백한다', async () => {
+      mockFeedApi.likeFeed.mockRejectedValueOnce(new Error('서버 오류'));
+      const { wrapper, queryClient } = createWrapper();
+
+      queryClient.setQueryData(feedKeys.public(), makeInfiniteFeedData([{ ...BASE_FEED }]));
+
+      const { result } = renderHook(() => useLikeFeed(), { wrapper });
+      result.current.mutate(1);
+
+      await waitFor(() => result.current.isError);
+
+      const data = queryClient.getQueryData<InfiniteData<FeedListResponse>>(feedKeys.public());
+      const item = data?.pages[0].items.find((i) => i.id === 1);
+      expect(item?.likedByMe).toBe(false);
+      expect(item?.likeCount).toBe(5);
+    });
+  });
+
+  // ---- useUnlikeFeed ----
+  describe('useUnlikeFeed', () => {
+    it('detail 캐시를 즉시 likedByMe=false, likeCount-1 로 업데이트한다', async () => {
+      mockFeedApi.unlikeFeed.mockResolvedValueOnce(undefined);
+      const { wrapper, queryClient } = createWrapper();
+
+      const likedFeed = { ...BASE_FEED, likedByMe: true, likeCount: 5 };
+      queryClient.setQueryData(feedKeys.detail(1), likedFeed);
+
+      const { result } = renderHook(() => useUnlikeFeed(), { wrapper });
+      result.current.mutate(1);
+
+      await waitFor(() => {
+        const data = queryClient.getQueryData<FeedResponse>(feedKeys.detail(1));
+        expect(data?.likedByMe).toBe(false);
+        expect(data?.likeCount).toBe(4);
+      });
+    });
+
+    it('likeCount가 0일 때 음수가 되지 않는다', async () => {
+      mockFeedApi.unlikeFeed.mockResolvedValueOnce(undefined);
+      const { wrapper, queryClient } = createWrapper();
+
+      const zeroLikeFeed = { ...BASE_FEED, likedByMe: true, likeCount: 0 };
+      queryClient.setQueryData(feedKeys.detail(1), zeroLikeFeed);
+
+      const { result } = renderHook(() => useUnlikeFeed(), { wrapper });
+      result.current.mutate(1);
+
+      await waitFor(() => {
+        const data = queryClient.getQueryData<FeedResponse>(feedKeys.detail(1));
+        expect(data?.likeCount).toBe(0);
+      });
+    });
+
+    it('public 목록 캐시를 낙관적으로 업데이트한다', async () => {
+      mockFeedApi.unlikeFeed.mockResolvedValueOnce(undefined);
+      const { wrapper, queryClient } = createWrapper();
+
+      const likedFeed = { ...BASE_FEED, likedByMe: true, likeCount: 5 };
+      queryClient.setQueryData(feedKeys.public(), makeInfiniteFeedData([likedFeed]));
+
+      const { result } = renderHook(() => useUnlikeFeed(), { wrapper });
+      result.current.mutate(1);
+
+      await waitFor(() => {
+        const data = queryClient.getQueryData<InfiniteData<FeedListResponse>>(feedKeys.public());
+        const item = data?.pages[0].items.find((i) => i.id === 1);
+        expect(item?.likedByMe).toBe(false);
+        expect(item?.likeCount).toBe(4);
+      });
+    });
+
+    it('API 실패 시 detail 캐시를 롤백하고 에러 toast를 표시한다', async () => {
+      mockFeedApi.unlikeFeed.mockRejectedValueOnce(new Error('좋아요 취소 실패'));
+      const { wrapper, queryClient } = createWrapper();
+
+      const likedFeed = { ...BASE_FEED, likedByMe: true, likeCount: 5 };
+      queryClient.setQueryData(feedKeys.detail(1), likedFeed);
+
+      const { result } = renderHook(() => useUnlikeFeed(), { wrapper });
+      result.current.mutate(1);
+
+      await waitFor(() => result.current.isError);
+
+      const data = queryClient.getQueryData<FeedResponse>(feedKeys.detail(1));
+      expect(data?.likedByMe).toBe(true);
+      expect(data?.likeCount).toBe(5);
+      expect(mockToast.error).toHaveBeenCalledWith('좋아요 취소 실패');
+    });
+  });
+});
 
 describe('useFeed hooks — 대댓글/댓글 좋아요', () => {
   beforeEach(() => {
