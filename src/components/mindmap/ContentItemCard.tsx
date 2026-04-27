@@ -18,6 +18,9 @@ interface Props {
   /** 기간 필터 복원용 */
   periodType?: string;
   period?: string;
+  /** custom 기간 복원용 */
+  fromDate?: string;
+  toDate?: string;
 }
 
 const TAG_COLORS = [
@@ -58,6 +61,8 @@ export default function ContentItemCard({
   edgeTagIdB,
   periodType,
   period,
+  fromDate,
+  toDate,
 }: Props) {
   const router = useRouter();
   const isDiary = item.type === 'DIARY';
@@ -71,6 +76,8 @@ export default function ContentItemCard({
     if (edgeTagIdB) params.set('edgeTagIdB', String(edgeTagIdB));
     if (periodType) params.set('periodType', periodType);
     if (period) params.set('period', period);
+    if (fromDate) params.set('fromDate', fromDate);
+    if (toDate) params.set('toDate', toDate);
 
     const paramStr = params.toString();
     window.history.replaceState(

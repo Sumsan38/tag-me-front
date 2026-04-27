@@ -33,9 +33,11 @@ interface Props {
   onClose: () => void;
   periodType?: string;
   period?: string;
+  fromDate?: string;
+  toDate?: string;
 }
 
-export default function TagDetailPanel({ node, onClose, periodType, period }: Props) {
+export default function TagDetailPanel({ node, onClose, periodType, period, fromDate, toDate }: Props) {
   const [activeTab, setActiveTab] = useState<PrimarySource>('DIARY');
   const dragScroll = useDragScroll();
   const dragScrollV = useDragScroll('vertical');
@@ -55,6 +57,8 @@ export default function TagDetailPanel({ node, onClose, periodType, period }: Pr
         sourceType: activeTabMeta?.sourceTypeParam,
         periodType,
         period,
+        fromDate,
+        toDate,
         size: 20,
       }
     : null;
@@ -192,6 +196,8 @@ export default function TagDetailPanel({ node, onClose, periodType, period }: Pr
                         nodeId={node.tagId}
                         periodType={periodType}
                         period={period}
+                        fromDate={fromDate}
+                        toDate={toDate}
                       />
                     </li>
                   ))}

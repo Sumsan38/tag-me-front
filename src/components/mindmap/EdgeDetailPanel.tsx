@@ -33,9 +33,11 @@ interface Props {
   onClose: () => void;
   periodType?: string;
   period?: string;
+  fromDate?: string;
+  toDate?: string;
 }
 
-export default function EdgeDetailPanel({ edge, nodeMap, onClose, periodType, period }: Props) {
+export default function EdgeDetailPanel({ edge, nodeMap, onClose, periodType, period, fromDate, toDate }: Props) {
   const [activeTab, setActiveTab] = useState<PrimarySource | null>(null);
   const dragScroll = useDragScroll();
   const dragScrollV = useDragScroll('vertical');
@@ -60,6 +62,8 @@ export default function EdgeDetailPanel({ edge, nodeMap, onClose, periodType, pe
         sourceType: activeTabMeta?.sourceTypeParam,
         periodType,
         period,
+        fromDate,
+        toDate,
         size: 20,
       }
     : null;
@@ -198,6 +202,8 @@ export default function EdgeDetailPanel({ edge, nodeMap, onClose, periodType, pe
                         edgeTagIdB={edge.tagIdB}
                         periodType={periodType}
                         period={period}
+                        fromDate={fromDate}
+                        toDate={toDate}
                       />
                     </li>
                   ))}

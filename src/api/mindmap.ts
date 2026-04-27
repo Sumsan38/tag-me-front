@@ -34,7 +34,12 @@ export interface MindmapResponse {
 
 export interface GetMindmapParams {
   periodType: string;
-  period: string;
+  /** non-custom 전용 (day/week/month/year). custom 시 생략. */
+  period?: string;
+  /** custom 전용. yyyy-MM-dd */
+  fromDate?: string;
+  /** custom 전용. yyyy-MM-dd (inclusive) */
+  toDate?: string;
   source?: string;
 }
 
@@ -43,6 +48,8 @@ export interface GetTagContentsParams {
   sourceType?: string;
   periodType?: string;
   period?: string;
+  fromDate?: string;
+  toDate?: string;
   cursor?: string;
   size?: number;
 }
@@ -53,6 +60,8 @@ export interface GetEdgeContentsParams {
   sourceType?: string;
   periodType?: string;
   period?: string;
+  fromDate?: string;
+  toDate?: string;
   cursor?: string;
   size?: number;
 }

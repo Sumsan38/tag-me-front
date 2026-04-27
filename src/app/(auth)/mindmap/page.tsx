@@ -25,8 +25,12 @@ function parsePeriodFromUrl(
   periodTypeStr: string | null,
   periodStr: string | null,
 ): { periodType: PeriodType; baseDate: Date } | null {
-  if (!periodTypeStr || !periodStr) return null;
+  if (!periodTypeStr) return null;
   const periodType = periodTypeStr as PeriodType;
+  if (periodType === 'custom') {
+    return { periodType: 'custom', baseDate: new Date() };
+  }
+  if (!periodStr) return null;
   try {
     let baseDate: Date;
     if (periodType === 'year') {
@@ -50,7 +54,7 @@ function buildPeriodParams(
   periodType: PeriodType,
   baseDate: Date,
   customRange?: CustomRange,
-): GetMindmapParams {
+): GetMindmapParams | null {
   if (periodType === 'day') {
     return { periodType: 'day', period: format(baseDate, 'yyyy-MM-dd') };
   }
@@ -64,9 +68,13 @@ function buildPeriodParams(
   if (periodType === 'year') {
     return { periodType: 'year', period: format(baseDate, 'yyyy') };
   }
-  // custom: from 날짜 기준 month 폴백
-  const refDate = customRange?.from ?? baseDate;
-  return { periodType: 'month', period: format(refDate, 'yyyy-MM') };
+  // custom: from/to 미선택 시 API 호출 비활성
+  if (!customRange?.from || !customRange?.to) return null;
+  return {
+    periodType: 'custom',
+    fromDate: format(customRange.from, 'yyyy-MM-dd'),
+    toDate: format(customRange.to, 'yyyy-MM-dd'),
+  };
 }
 
 // ── Legend ───────────────────────────────────────────────────────────────────
@@ -102,7 +110,20 @@ export default function MindmapPage() {
     restoredPeriod?.periodType ?? 'month',
   );
   const [baseDate, setBaseDate] = useState(restoredPeriod?.baseDate ?? new Date());
-  const [customRange, setCustomRange] = useState<CustomRange | undefined>(undefined);
+  const [customRange, setCustomRange] = useState<CustomRange | undefined>(() => {
+    if (searchParams.get('periodType') !== 'custom') return undefined;
+    const fromStr = searchParams.get('fromDate');
+    const toStr = searchParams.get('toDate');
+    if (!fromStr || !toStr) return undefined;
+    try {
+      return {
+        from: parse(fromStr, 'yyyy-MM-dd', new Date()),
+        to: parse(toStr, 'yyyy-MM-dd', new Date()),
+      };
+    } catch {
+      return undefined;
+    }
+  });
   const [sourceFilter, setSourceFilter] = useState<SourceFilterValue>('all');
   const [panel, setPanel] = useState<PanelState>({ kind: 'none' });
   const [showLegend, setShowLegend] = useState(false);
@@ -304,8 +325,10 @@ export default function MindmapPage() {
               <TagDetailPanel
                 node={panel.node}
                 onClose={handleClose}
-                periodType={periodParams.periodType}
-                period={periodParams.period}
+                periodType={periodParams?.periodType}
+                period={periodParams?.period}
+                fromDate={periodParams?.fromDate}
+                toDate={periodParams?.toDate}
               />
             )}
             {panel.kind === 'edge' && (
@@ -313,8 +336,10 @@ export default function MindmapPage() {
                 edge={panel.edge}
                 nodeMap={nodeMap}
                 onClose={handleClose}
-                periodType={periodParams.periodType}
-                period={periodParams.period}
+                periodType={periodParams?.periodType}
+                period={periodParams?.period}
+                fromDate={periodParams?.fromDate}
+                toDate={periodParams?.toDate}
               />
             )}
           </div>
