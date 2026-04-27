@@ -1,13 +1,12 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Trash2 } from 'lucide-react';
-import { formatDistanceToNow, parseISO } from 'date-fns';
-import { ko } from 'date-fns/locale';
+import { Send } from 'lucide-react';
 
-import Avatar from '@/components/common/Avatar';
-import { useComments, useCreateComment, useDeleteComment } from '@/hooks/useFeed';
+import { useComments, useCreateComment } from '@/hooks/useFeed';
 import { useAuthStore, selectIsAuthenticated } from '@/stores/authStore';
+import CommentItem from './CommentItem';
+import ReplyList from './ReplyList';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -23,11 +22,9 @@ export interface CommentListProps {
 
 export default function CommentList({ feedId }: CommentListProps) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
-  const currentUserId = useAuthStore((s) => s.user?.id ?? null);
 
   const commentsQuery = useComments(feedId);
   const createComment = useCreateComment();
-  const deleteComment = useDeleteComment();
 
   const [input, setInput] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -84,40 +81,14 @@ export default function CommentList({ feedId }: CommentListProps) {
       {/* Comment items */}
       <div className="divide-y divide-gray-50">
         {comments.map((comment) => (
-          <div key={comment.id} className="px-5 py-3 flex gap-2.5">
-            <Avatar initials={comment.authorNickname ? comment.authorNickname[0].toUpperCase() : '?'} size="sm" />
-            <div className="flex-1 min-w-0">
-              <div className="flex items-baseline gap-2">
-                <span className="text-xs font-semibold text-foreground">
-                  {comment.authorNickname || '탈퇴한 사용자'}
-                </span>
-                <span className="text-[10px] text-muted">
-                  {formatDistanceToNow(parseISO(comment.createdAt), {
-                    addSuffix: true,
-                    locale: ko,
-                  })}
-                </span>
-                {currentUserId === comment.userId && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      deleteComment.mutate({
-                        feedId,
-                        commentId: comment.id,
-                      })
-                    }
-                    className="ml-auto text-muted hover:text-error transition-colors"
-                    aria-label="댓글 삭제"
-                  >
-                    <Trash2 size={12} />
-                  </button>
-                )}
-              </div>
-              <p className="mt-0.5 text-[13px] leading-relaxed text-sub">
-                {comment.content}
-              </p>
-            </div>
-          </div>
+          <CommentItem
+            key={comment.id}
+            feedId={feedId}
+            comment={comment}
+            renderReplies={(commentId) => (
+              <ReplyList feedId={feedId} commentId={commentId} />
+            )}
+          />
         ))}
       </div>
 

@@ -4,17 +4,20 @@
  * Feed 도메인 타입 정의.
  *
  * 백엔드 API 스펙 기준:
- *   - POST   /api/v1/feeds                            → CreateFeedRequest / CreateFeedResponse
- *   - GET    /api/v1/feeds                             → FeedListResponse (cursor 기반)
- *   - GET    /api/v1/feeds/following                   → FeedListResponse (cursor 기반)
- *   - GET    /api/v1/feeds/{id}                        → FeedResponse
- *   - PUT    /api/v1/feeds/{id}                        → UpdateFeedRequest (전체 교체)
- *   - DELETE /api/v1/feeds/{id}                        → soft delete
- *   - POST   /api/v1/feeds/{id}/likes                  → 좋아요
- *   - DELETE /api/v1/feeds/{id}/likes                  → 좋아요 취소
- *   - GET    /api/v1/feeds/{id}/comments               → CommentListResponse (cursor 기반)
- *   - POST   /api/v1/feeds/{id}/comments               → CreateCommentResponse
- *   - DELETE /api/v1/feeds/{feedId}/comments/{commentId} → 댓글 삭제
+ *   - POST   /api/v1/feeds                                            → CreateFeedRequest / CreateFeedResponse
+ *   - GET    /api/v1/feeds                                             → FeedListResponse (cursor 기반)
+ *   - GET    /api/v1/feeds/following                                   → FeedListResponse (cursor 기반)
+ *   - GET    /api/v1/feeds/{id}                                        → FeedResponse
+ *   - PUT    /api/v1/feeds/{id}                                        → UpdateFeedRequest (전체 교체)
+ *   - DELETE /api/v1/feeds/{id}                                        → soft delete
+ *   - POST   /api/v1/feeds/{id}/likes                                  → 좋아요
+ *   - DELETE /api/v1/feeds/{id}/likes                                  → 좋아요 취소
+ *   - GET    /api/v1/feeds/{id}/comments                               → CommentListResponse (cursor 기반)
+ *   - POST   /api/v1/feeds/{id}/comments                               → CreateCommentResponse (parentCommentId로 대댓글 가능)
+ *   - DELETE /api/v1/feeds/{feedId}/comments/{commentId}               → 댓글 삭제
+ *   - GET    /api/v1/feeds/{feedId}/comments/{commentId}/replies        → CommentListResponse (cursor 기반)
+ *   - POST   /api/v1/feeds/{feedId}/comments/{commentId}/likes         → 댓글 좋아요
+ *   - DELETE /api/v1/feeds/{feedId}/comments/{commentId}/likes         → 댓글 좋아요 취소
  */
 
 // ---------------------------------------------------------------------------
@@ -86,6 +89,13 @@ export interface CommentResponse {
   authorNickname: string;
   content: string;
   createdAt: string; // ISO 8601
+  /** 부모 댓글 ID. 최상위 댓글이면 null, 대댓글이면 부모 댓글 ID. */
+  parentId: number | null;
+  likeCount: number;
+  /** 요청자의 좋아요 여부. 비로그인 시 false. */
+  likedByMe: boolean;
+  /** 대댓글 수. 대댓글 항목에서는 항상 0. */
+  replyCount: number;
 }
 
 export interface CommentListResponse {
@@ -104,4 +114,6 @@ export interface CreateCommentResponse {
 
 export interface CreateCommentRequest {
   content: string; // 1~1,000자
+  /** 대댓글 작성 시 부모 댓글 ID. null이면 최상위 댓글. 1단계 깊이만 허용. */
+  parentCommentId?: number;
 }

@@ -14,7 +14,11 @@
  *   - useUnlikeFeed()       — 좋아요 취소 mutation (낙관적 업데이트)
  *   - useComments()         — 댓글 목록 infinite query
  *   - useCreateComment()    — 댓글 작성 mutation
- *   - useDeleteComment()    — 댓글 삭제 mutation
+ *   - useDeleteComment()    — 댓글/대댓글 삭제 mutation
+ *   - useReplies()          — 대댓글 목록 infinite query
+ *   - useCreateReply()      — 대댓글 작성 mutation
+ *   - useLikeComment()      — 댓글 좋아요 mutation (낙관적 업데이트)
+ *   - useUnlikeComment()    — 댓글 좋아요 취소 mutation (낙관적 업데이트)
  */
 
 import {
@@ -32,6 +36,7 @@ import type {
   UpdateFeedRequest,
   FeedListResponse,
   FeedResponse,
+  CommentListResponse,
 } from '@/types/feed';
 
 // ---------------------------------------------------------------------------
@@ -44,8 +49,9 @@ export const feedKeys = {
   public: () => [...feedKeys.lists(), 'public'] as const,
   following: () => [...feedKeys.lists(), 'following'] as const,
   detail: (id: number) => [...feedKeys.all, 'detail', id] as const,
-  comments: (feedId: number) =>
-    [...feedKeys.all, 'comments', feedId] as const,
+  comments: (feedId: number) => [...feedKeys.all, 'comments', feedId] as const,
+  replies: (feedId: number, commentId: number) =>
+    [...feedKeys.all, 'replies', feedId, commentId] as const,
 };
 
 // ---------------------------------------------------------------------------
@@ -367,7 +373,7 @@ export function useCreateComment() {
 // useDeleteComment
 // ---------------------------------------------------------------------------
 
-/** 댓글 삭제 mutation. 성공 시 댓글 목록 + 게시글 상세(commentCount) 무효화. */
+/** 댓글/대댓글 삭제 mutation. parentId가 있으면 대댓글로 간주해 replies 캐시도 무효화. */
 export function useDeleteComment() {
   const toast = useToast();
   const queryClient = useQueryClient();
@@ -379,8 +385,14 @@ export function useDeleteComment() {
     }: {
       feedId: number;
       commentId: number;
+      parentId?: number;
     }) => feedApi.deleteComment(feedId, commentId),
     onSuccess: (_, variables) => {
+      if (variables.parentId !== undefined) {
+        queryClient.invalidateQueries({
+          queryKey: feedKeys.replies(variables.feedId, variables.parentId),
+        });
+      }
       queryClient.invalidateQueries({
         queryKey: feedKeys.comments(variables.feedId),
       });
@@ -391,6 +403,169 @@ export function useDeleteComment() {
       toast.success('댓글이 삭제되었습니다.');
     },
     onError: (error) => {
+      toast.error(getErrorMessage(error));
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// useReplies
+// ---------------------------------------------------------------------------
+
+/** 대댓글 목록. Cursor 기반 무한 스크롤. feedId/commentId가 truthy일 때만 활성화. */
+export function useReplies(
+  feedId: number | null | undefined,
+  commentId: number | null | undefined,
+) {
+  return useInfiniteQuery({
+    queryKey: feedKeys.replies(feedId!, commentId!),
+    queryFn: ({ pageParam }) =>
+      feedApi.getReplies(feedId!, commentId!, pageParam),
+    initialPageParam: undefined as number | undefined,
+    getNextPageParam: (lastPage) =>
+      lastPage.hasNext ? (lastPage.nextCursor ?? undefined) : undefined,
+    enabled: !!feedId && !!commentId,
+    staleTime: 60 * 1000,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// useCreateReply
+// ---------------------------------------------------------------------------
+
+/** 대댓글 작성 mutation. 성공 시 replies 캐시 무효화 + comments(replyCount 갱신). */
+export function useCreateReply() {
+  const toast = useToast();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      feedId,
+      content,
+      parentCommentId,
+    }: {
+      feedId: number;
+      content: string;
+      parentCommentId: number;
+    }) => feedApi.createComment(feedId, content, parentCommentId),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: feedKeys.replies(variables.feedId, variables.parentCommentId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: feedKeys.comments(variables.feedId),
+      });
+    },
+    onError: (error) => {
+      toast.error(getErrorMessage(error));
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// useLikeComment — 낙관적 업데이트
+// ---------------------------------------------------------------------------
+
+type LikeCommentParams = {
+  feedId: number;
+  commentId: number;
+  /** 대댓글인 경우 부모 댓글 ID. 없으면 최상위 댓글 캐시(comments)를 업데이트. */
+  parentId?: number;
+};
+
+/** 댓글 좋아요. 클릭 즉시 UI 반영, 서버 실패 시 자동 롤백. */
+export function useLikeComment() {
+  const toast = useToast();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ feedId, commentId }: LikeCommentParams) =>
+      feedApi.likeComment(feedId, commentId),
+
+    onMutate: async ({ feedId, commentId, parentId }) => {
+      const cacheKey =
+        parentId !== undefined
+          ? feedKeys.replies(feedId, parentId)
+          : feedKeys.comments(feedId);
+
+      await queryClient.cancelQueries({ queryKey: cacheKey });
+      const prev =
+        queryClient.getQueryData<InfiniteData<CommentListResponse>>(cacheKey);
+
+      if (prev) {
+        queryClient.setQueryData<InfiniteData<CommentListResponse>>(cacheKey, {
+          ...prev,
+          pages: prev.pages.map((page) => ({
+            ...page,
+            items: page.items.map((item) =>
+              item.id === commentId
+                ? { ...item, likedByMe: true, likeCount: item.likeCount + 1 }
+                : item,
+            ),
+          })),
+        });
+      }
+
+      return { prev, cacheKey };
+    },
+
+    onError: (error, _, context) => {
+      if (context?.prev) {
+        queryClient.setQueryData(context.cacheKey, context.prev);
+      }
+      toast.error(getErrorMessage(error));
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// useUnlikeComment — 낙관적 업데이트
+// ---------------------------------------------------------------------------
+
+/** 댓글 좋아요 취소. 클릭 즉시 UI 반영, 서버 실패 시 자동 롤백. */
+export function useUnlikeComment() {
+  const toast = useToast();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ feedId, commentId }: LikeCommentParams) =>
+      feedApi.unlikeComment(feedId, commentId),
+
+    onMutate: async ({ feedId, commentId, parentId }) => {
+      const cacheKey =
+        parentId !== undefined
+          ? feedKeys.replies(feedId, parentId)
+          : feedKeys.comments(feedId);
+
+      await queryClient.cancelQueries({ queryKey: cacheKey });
+      const prev =
+        queryClient.getQueryData<InfiniteData<CommentListResponse>>(cacheKey);
+
+      if (prev) {
+        queryClient.setQueryData<InfiniteData<CommentListResponse>>(cacheKey, {
+          ...prev,
+          pages: prev.pages.map((page) => ({
+            ...page,
+            items: page.items.map((item) =>
+              item.id === commentId
+                ? {
+                    ...item,
+                    likedByMe: false,
+                    likeCount: Math.max(0, item.likeCount - 1),
+                  }
+                : item,
+            ),
+          })),
+        });
+      }
+
+      return { prev, cacheKey };
+    },
+
+    onError: (error, _, context) => {
+      if (context?.prev) {
+        queryClient.setQueryData(context.cacheKey, context.prev);
+      }
       toast.error(getErrorMessage(error));
     },
   });
