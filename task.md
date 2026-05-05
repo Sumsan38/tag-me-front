@@ -488,7 +488,7 @@
 - [x] `CommentList.tsx` 수정: 각 댓글에 `replyCount` 표시 + "대댓글 N개 보기" 토글 버튼
 - [x] `ReplyList.tsx` 신규: 대댓글 목록 (lazy load, 오래된 순, 무한 스크롤)
 - [x] `CommentItem.tsx` 신규: 댓글 좋아요 버튼(하트 아이콘 + 좋아요 수), "답글 달기" 버튼
-- [ ] 삭제된 부모 댓글 UI: "삭제된 댓글입니다" 회색 표시 + 대댓글은 정상 노출
+- [x] 삭제된 부모 댓글 UI: "삭제된 댓글입니다" 회색 표시 + 대댓글은 정상 노출
 - [x] 대댓글 작성 입력: "답글 달기" 클릭 시 해당 댓글 하단에 입력창 노출
 
 **알림 타입 확장**
@@ -504,7 +504,7 @@
 
 > 기존 5주차에서 이동 (2026-04-08). 백엔드 9주차 Search 도메인 완성 후 연동.
 
-> **백엔드 API 현황 (2026-03-31 기준)**
+> **백엔드 API 현황 (2026-05-05 갱신)**
 >
 > | 엔드포인트 | 백엔드 상태 | 비고 |
 > |---|---|---|
@@ -512,12 +512,54 @@
 > | `GET /api/v1/tags/{id}/related` | **구현 완료** | 응답: `[{ tagId, displayName, canonical, coOccurrenceCount }]`. 존재하지 않는 태그 → 404 (TAG_001) |
 > | `GET /api/v1/tags/trending` | **미구현** | 백엔드 배치 Job + Redis 캐시 필요 |
 > | `GET /api/v1/tags/daily-prompt` | **미구현** | |
-> | `GET /api/v1/search` | **미구현** | 백엔드 9주차 Search 도메인 |
-> | `GET /api/v1/search/autocomplete` | **미구현** | 백엔드 9주차 Search 도메인 |
+> | `GET /api/v1/search` | **구현 완료** (백엔드 95da831, 2026-05-05) | 비로그인 허용. 비로그인 시 일기 결과 제외, 공개 피드만. 응답 envelope `ApiResponse<SearchResponse>` |
+> | `GET /api/v1/search/autocomplete` | **구현 완료** (백엔드 95da831, 2026-05-05) | 비로그인 허용. 응답 envelope `ApiResponse<AutocompleteSearchResponse[]>` — 단순 `{name}` 형식 (⚠️ `/api/v1/tags/autocomplete`와 응답 형식 다름) |
+>
+> **`/api/v1/search` 요청 파라미터 (전부 query string)**
+> - `q` (필수, 공백 불가) — 검색 키워드. 누락/blank → 400
+> - `type` (선택, 기본 `ALL`) — `DIARY` | `FEED` | `ALL` **대문자 enum**. 잘못된 값 → 400
+> - `from`, `to` (선택) — ISO-8601 Instant (예: `2026-01-01T00:00:00Z`). 포맷 오류 → 400
+> - `tags` (선택) — 콤마 구분(`tags=a,b`) 또는 반복(`tags=a&tags=b`) 둘 다 허용. **빈/공백 element는 서버가 자동 제거** → 클라이언트 사전 정리 불필요
+> - `cursor` (선택) — 백엔드가 발급한 인코딩 문자열 그대로 패스스루. **최대 4096자**, 초과 시 400
+> - `size` (선택, 기본 `20`, 최대 `100`) — 1~100 범위 외 → 400
+>
+> **`/api/v1/search` 응답 스키마 (`SearchResponse`)**
+> ```ts
+> {
+>   items: Array<{
+>     type: "DIARY" | "FEED";
+>     id: number;
+>     title: string | null;        // FEED는 항상 null (Feed에 title 없음)
+>     contentSnippet: string;       // 본문 발췌 (하이라이팅 미적용)
+>     tags: string[];               // 태그 표시 이름
+>     highlights: string[];         // 하이라이팅 발췌 (`<em>...</em>` 포함)
+>     createdAt: string;            // ISO-8601 Instant
+>   }>;
+>   nextCursor: string | null;      // 마지막 페이지면 null
+>   hasNext: boolean;
+> }
+> ```
+>
+> **`/api/v1/search/autocomplete` 요청 파라미터**
+> - `q` (필수, 공백 불가) — prefix. 누락/blank → 400
+> - `limit` (선택, 기본 `10`, 최대 `50`) — 1~50 범위 외 → 400
+>
+> **`/api/v1/search/autocomplete` 응답 스키마 (`AutocompleteSearchResponse[]`)**
+> ```ts
+> Array<{ name: string }>   // ⚠️ /api/v1/tags/autocomplete의 {tagId, displayName, canonical}과 다름. 검색 화면 전용 단순 형식.
+> ```
+>
+> **에러 응답 (공통 envelope)**: 위의 모든 400 케이스는 `{ success: false, data: null, error: { code, message }, ... }` 형식으로 반환.
 >
 > **`types/tag.ts` 동기화 필요 사항:**
 > - `TagSuggestion`: `usageCount` 필드 제거, `displayName`/`canonical` 필드 추가 (백엔드 응답과 불일치)
 > - `TagSuggestion.id`: 백엔드는 `tagId: number` — `string`에서 `number`로 변경 검토
+>
+> **`types/search.ts` 동기화 필요 사항 (2026-05-05 추가):**
+> - `SearchResult`: 위의 `items[]` 스키마와 정확히 일치 — `type: "DIARY" | "FEED"` 유니온, `title: string | null`, `highlights: string[]` 등
+> - `SearchFilter`: `type: "DIARY" | "FEED" | "ALL"`(대문자), `from?: string`/`to?: string`(ISO Instant), `tags?: string[]`
+> - 응답 페이지 타입: `{ items: SearchResult[]; nextCursor: string | null; hasNext: boolean }`
+> - `AutocompleteSearchItem`: `{ name: string }` — 검색 화면 전용 (Tag 자동완성 타입과 분리)
 
 **API + 훅**
 - [ ] `api/tag.ts` 작성: (partial — 백엔드 구현 완료 항목만 반영)
@@ -525,12 +567,18 @@
   - `getRelatedTags(tagId)` → GET `/api/v1/tags/{id}/related` — ✅ 프론트 구현 완료
   - `getTrending()` → GET `/api/v1/tags/trending` — ❌ 백엔드 미구현
   - `getDailyPrompt()` → GET `/api/v1/tags/daily-prompt` — ❌ 백엔드 미구현
-- [ ] `api/search.ts` 작성:
-  - `search(params)` → GET `/api/v1/search` (q, type, from, to, tags) — ❌ 백엔드 미구현
-  - `searchAutocomplete(query)` → GET `/api/v1/search/autocomplete?q=` — ❌ 백엔드 미구현
+- [ ] `api/search.ts` 작성: (✅ 백엔드 구현 완료 — 2026-05-05)
+  - `search(params)` → GET `/api/v1/search`
+    - 시그니처: `search({ q, type?, from?, to?, tags?, cursor?, size? })`
+    - `type`은 `"DIARY" | "FEED" | "ALL"` 대문자 enum으로 송신 — 탭 UI 라벨(소문자/한글)과 분리
+    - `cursor`는 응답의 `nextCursor`를 그대로 다음 호출에 전달 (변조 금지, 4096자 제한)
+    - 비로그인 호출 시에도 200 — 단, 응답 `items`에서 `type === "DIARY"`는 절대 등장하지 않음 (서버 보장)
+  - `searchAutocomplete(query)` → GET `/api/v1/search/autocomplete?q=&limit=`
+    - 시그니처: `searchAutocomplete({ q, limit? })` — `limit` 기본 10, 최대 50
+    - 응답이 `{name}` 단순 형식이므로 Tag 자동완성과 컴포넌트/훅 타입을 분리
 - [ ] `hooks/useSearch.ts` 작성:
-  - `useSearch(params)` — infinite query
-  - `useSearchAutocomplete(query)` — query (debounce 300ms)
+  - `useSearch(params)` — infinite query, `getNextPageParam = (last) => last.hasNext ? last.nextCursor : undefined`
+  - `useSearchAutocomplete(query, limit?)` — query (debounce 300ms), `enabled: query.trim().length > 0` (서버 400 사전 차단)
 
 **페이지 구현**
 - [ ] **통합 검색 페이지** (`src/app/(auth)/search/page.tsx`):
@@ -546,6 +594,22 @@
   - 타입 아이콘 (일기/피드 구분)
   - 제목 (하이라이팅), 본문 미리보기 (하이라이팅), 태그 칩, 작성일
   - 클릭 시 해당 일기/피드 상세로 이동
+
+**8주차 후속 — 1차 PR 이후로 분리 (2026-05-05 Codex 2차 리뷰)**
+- [ ] **태그 필터 UI 와이어**: `SearchFilter.tags`/`api/search.ts`/`useSearch`까지는 1차에서 준비됨. 페이지에 다중 태그 칩 입력 + 활성 필터에 포함시키는 작업만 남음. (`TagInput` 컴포넌트 재사용 검토)
+- [ ] **작성자 필터**: 백엔드 `/api/v1/search` 요청 파라미터에 `author`가 없음. 백엔드 추가 후 프론트 연동.
+- [ ] **검색 결과 카드 제목 하이라이팅**: 백엔드 `SearchResponse.highlights`는 본문 발췌 전용 단일 배열이라 제목은 평문으로 노출 중. 클라이언트 사이드에서 검색 키워드 일치 부분을 `<mark>`로 감싸는 헬퍼 추가가 필요 (정규식 escape, 다중 단어 처리 주의).
+- [ ] **자동완성 드롭다운 키보드 내비게이션**: ↑/↓ 항목 포커스, Enter 확정, Esc 닫기 — `role="listbox"` 시맨틱과 짝을 맞춤.
+- [ ] **자동완성 디바운스 공용 훅**: `useDebouncedValue`를 `useTagAutocomplete`/검색 페이지 양쪽에서 재사용하도록 추출.
+- [ ] **`PERMIT_ALL_GET_PATTERNS` 상수 분리**: `client.ts` 내부 하드코딩 → 별도 상수 파일로 이동해 백엔드 권한 정책 변경 시 한 곳만 수정.
+
+**짝 작업 — JWT invalid 토큰 → 401 강제 정책 대응 (2026-05-05 결정, 백엔드 task.md 9주차 후속 항목과 짝)**
+- [ ] **API 클라이언트 401 인터셉터 정비**: 백엔드가 invalid Bearer 토큰에 대해 게스트(200) 대신 401을 반환하도록 변경 예정. 영향 범위는 `/search`뿐 아니라 모든 permitAll GET — `/api/v1/feeds`, `/api/v1/feeds/*`, `/api/v1/feeds/*/comments`, `/api/v1/feeds/*/comments/*/replies`, `/api/v1/search`, `/api/v1/search/autocomplete`.
+  - 401 수신 시 refresh 토큰으로 자동 갱신 시도 → 성공하면 원 요청 재시도, 실패하면 게스트로 강등(헤더 제거 후 재시도)
+  - 헤더가 처음부터 없는 게스트 요청은 종전대로 200 정상 응답 — 인터셉터가 헤더 부재 케이스를 건드리면 안 됨
+  - 토큰 갱신 동시 폭주 방지: 단일 in-flight refresh promise 공유 (request queue)
+- [ ] **회귀 테스트**: SSR/CSR 양쪽 경로에서 `Authorization` 헤더 없음 / valid / invalid(만료·위조) 3-way 매트릭스로 페이지 렌더 검증
+- [ ] 프론트 ↔ 백엔드 릴리즈 순서 합의: 백엔드가 401로 변경된 직후 프론트가 인터셉터 정비된 빌드를 배포해야 stale invalidation으로 인한 사용자 강제 로그아웃 방지
 
 ### 9주차 — 피드 인터랙션 + 이미지 업로드
 

@@ -8,7 +8,12 @@
  *   - Response Interceptor:
  *       - 401 응답 시 Refresh Token(HttpOnly Cookie)으로 갱신 후 원래 요청 재시도
  *       - 동시에 여러 요청이 401을 받을 경우 갱신 요청이 중복되지 않도록 Promise 큐 관리
- *       - 갱신 실패 시 로그인 페이지 리다이렉트
+ *       - 갱신 실패 시:
+ *           · permitAll GET 경로(피드/검색 등 비로그인 허용)이면 Authorization 헤더를 제거하고
+ *             게스트 요청으로 강등하여 재시도한다 — 백엔드가 invalid Bearer 토큰에 대해
+ *             200 게스트가 아닌 401을 반환하도록 정책을 변경(2026-05-05)함에 따른 대응.
+ *           · 그 외 인증 필수 경로는 인증 상태 초기화 후 로그인 페이지로 리다이렉트.
+ *       - 헤더가 처음부터 없는 게스트 요청은 인터셉터가 건드리지 않는다(401이 안 오기 때문).
  *   - Response Interceptor: ApiEnvelope<T> 에서 data 필드 자동 추출
  *
  * Refresh Token 관리:
@@ -41,11 +46,17 @@ interface ApiEnvelope<T = unknown> {
 }
 
 /**
- * 재시도 플래그가 추가된 요청 설정 타입.
+ * 재시도/강등 플래그가 추가된 요청 설정 타입.
  * axios InternalAxiosRequestConfig 를 확장한다.
+ *
+ *   - `_retry`: 401 → refresh 시도가 한 번 일어났음을 표시한다 (무한 루프 방지).
+ *   - `_skipAuth`: 이번 요청 회에 한해 Authorization 헤더 첨부를 건너뛰라는 표시.
+ *     refresh 실패 후 permitAll GET을 게스트로 강등 재시도할 때 store에 살아 있는
+ *     access token이 다시 붙지 않도록 사용한다. 인증 상태 자체는 보존된다.
  */
 interface RetryableRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;
+  _skipAuth?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -103,6 +114,46 @@ function isAuthEndpoint(url: string | undefined): boolean {
 }
 
 // ---------------------------------------------------------------------------
+// permitAll GET 경로 (게스트 강등 대상)
+// ---------------------------------------------------------------------------
+
+/**
+ * 백엔드가 비로그인 호출도 허용하는 GET 엔드포인트 패턴.
+ * invalid 토큰으로 인한 401 + refresh 실패 시, 헤더를 제거하고 재시도하면
+ * 백엔드가 게스트 응답(200)을 내려준다. 사용자 강제 로그아웃을 막는 안전장치이다.
+ */
+// feedId/commentId는 숫자형 ID로 제한해 /feeds/following 같은 인증 필수 sub-route를
+// 우연히 강등 대상으로 잡지 않도록 한다.
+const PERMIT_ALL_GET_PATTERNS: ReadonlyArray<RegExp> = [
+  /^\/api\/v1\/feeds$/,
+  /^\/api\/v1\/feeds\/\d+$/,
+  /^\/api\/v1\/feeds\/\d+\/comments$/,
+  /^\/api\/v1\/feeds\/\d+\/comments\/\d+\/replies$/,
+  /^\/api\/v1\/search$/,
+  /^\/api\/v1\/search\/autocomplete$/,
+];
+
+/**
+ * 주어진 method+url이 게스트 강등 가능한 permitAll GET인지 판정한다.
+ *
+ * - method가 GET이 아닐 경우 항상 false (POST 등은 강등하면 멱등성을 깬다).
+ * - url에 query string이나 origin이 포함되어 있어도 안전하게 path만 추출해 매칭.
+ * - 호출자가 url을 비워서 호출한 비정상 케이스는 false.
+ *
+ * 테스트를 위해 export한다.
+ */
+export function isPermitAllGet(
+  method: string | undefined,
+  url: string | undefined,
+): boolean {
+  if (!url) return false;
+  if ((method ?? 'get').toLowerCase() !== 'get') return false;
+  // origin과 query 제거 후 path만 비교
+  const path = url.split('?')[0].replace(/^https?:\/\/[^/]+/, '');
+  return PERMIT_ALL_GET_PATTERNS.some((pattern) => pattern.test(path));
+}
+
+// ---------------------------------------------------------------------------
 // Axios 인스턴스
 // ---------------------------------------------------------------------------
 
@@ -128,27 +179,73 @@ const apiClient = axios.create({
 let isRefreshing = false;
 
 /**
- * 갱신 완료 대기 중인 요청의 resolve/reject 콜백 큐.
+ * 갱신 완료를 기다리는 요청 묶음.
+ * 갱신 결과(성공/실패)에 따라 각 요청을 재시도하거나 강등 분기로 보낸다.
  */
-let refreshQueue: Array<{
-  resolve: (token: string) => void;
+interface PendingRequest {
+  request: RetryableRequestConfig;
+  resolve: (response: AxiosResponse) => void;
   reject: (error: unknown) => void;
-}> = [];
+}
+
+let refreshQueue: PendingRequest[] = [];
 
 /**
- * 갱신 성공 시 대기 중인 요청 모두 재개.
+ * 갱신 성공 시 대기 요청들을 새 토큰으로 재시도한다.
+ * 큐를 즉시 비워서 이후 들어오는 요청과 섞이지 않도록 한다.
  */
-function resolveRefreshQueue(newToken: string): void {
-  refreshQueue.forEach(({ resolve }) => resolve(newToken));
+function processQueueWithToken(newToken: string): void {
+  const pending = refreshQueue;
   refreshQueue = [];
+  for (const { request, resolve, reject } of pending) {
+    request.headers.Authorization = `Bearer ${newToken}`;
+    apiClient(request).then(resolve).catch(reject);
+  }
 }
 
 /**
- * 갱신 실패 시 대기 중인 요청 모두 에러 처리.
+ * 갱신 실패 시 대기 요청들을 게스트 강등 분기로 보낸다.
+ * permitAll GET이면 헤더 없이 재시도, 아니면 동일하게 실패시킨다.
  */
-function rejectRefreshQueue(error: unknown): void {
-  refreshQueue.forEach(({ reject }) => reject(error));
+function processQueueWithFailure(error: unknown): void {
+  const pending = refreshQueue;
   refreshQueue = [];
+  for (const { request, resolve, reject } of pending) {
+    handleRefreshFailure(request, error).then(resolve, reject);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Refresh 실패 시 분기
+// ---------------------------------------------------------------------------
+
+/**
+ * Refresh가 최종 실패한 요청을 처리한다.
+ *
+ *   - permitAll GET: Authorization 헤더 제거 후 재시도. 백엔드가 200 게스트 응답을 내려준다.
+ *     `_retry === true`이므로 다시 401이 와도 refresh 분기에 재진입하지 않는다.
+ *     이 경로는 사용자를 강제 로그아웃시키지 않는다. 인증 상태는 호출자(401 핸들러)가
+ *     인증 필수 분기에서만 정리하므로 store는 그대로 둔다.
+ *   - 그 외(인증 필수): 인증 상태를 정리하고 로그인 페이지로 리다이렉트한 뒤 원본 에러를 reject한다.
+ */
+async function handleRefreshFailure(
+  request: RetryableRequestConfig,
+  error: unknown,
+): Promise<AxiosResponse> {
+  if (isPermitAllGet(request.method, request.url)) {
+    request._skipAuth = true;
+    if (request.headers) {
+      delete request.headers.Authorization;
+    }
+    return apiClient(request);
+  }
+
+  // 인증 필수 경로에서만 인증 상태를 비운다. 강등 성공 케이스가 휩쓸려 같이 로그아웃되는 일을 막는다.
+  clearAuthState();
+  if (typeof window !== 'undefined') {
+    window.location.href = ROUTES.LOGIN;
+  }
+  throw error;
 }
 
 // ---------------------------------------------------------------------------
@@ -178,6 +275,14 @@ async function requestTokenRefresh(): Promise<{ accessToken: string }> {
 
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
+    const retryable = config as RetryableRequestConfig;
+    if (retryable._skipAuth) {
+      // 강등 재시도: 헤더가 다시 붙지 않도록 명시적으로 비운다.
+      if (config.headers) {
+        delete config.headers.Authorization;
+      }
+      return config;
+    }
     const token = getAccessToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -234,15 +339,10 @@ apiClient.interceptors.response.use(
       !isAuthEndpoint(originalRequest.url)
     ) {
       if (isRefreshing) {
-        // 이미 갱신 중 — 큐에 등록하고 갱신 완료 후 재시도
+        // 이미 갱신 중 — 큐에 등록하고 갱신 완료(성공/실패) 후 일괄 처리
+        originalRequest._retry = true;
         return new Promise<AxiosResponse>((resolve, reject) => {
-          refreshQueue.push({
-            resolve: (newToken: string) => {
-              originalRequest.headers.Authorization = `Bearer ${newToken}`;
-              resolve(apiClient(originalRequest));
-            },
-            reject,
-          });
+          refreshQueue.push({ request: originalRequest, resolve, reject });
         });
       }
 
@@ -252,20 +352,15 @@ apiClient.interceptors.response.use(
       try {
         const { accessToken } = await requestTokenRefresh();
         setAccessToken(accessToken);
-        resolveRefreshQueue(accessToken);
+        processQueueWithToken(accessToken);
 
         originalRequest.headers.Authorization = `Bearer ${accessToken}`;
         return apiClient(originalRequest);
       } catch (refreshError) {
-        rejectRefreshQueue(refreshError);
-        clearAuthState();
-
-        // 브라우저 환경에서만 리다이렉트
-        if (typeof window !== 'undefined') {
-          window.location.href = ROUTES.LOGIN;
-        }
-
-        return Promise.reject(refreshError);
+        // 인증 상태 정리는 handleRefreshFailure 내부에서 인증 필수 경로일 때만 수행한다.
+        // 그래야 permitAll GET 강등이 성공한 사용자가 함께 로그아웃되지 않는다.
+        processQueueWithFailure(refreshError);
+        return handleRefreshFailure(originalRequest, refreshError);
       } finally {
         isRefreshing = false;
       }

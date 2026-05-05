@@ -19,11 +19,18 @@ import type { AxiosAdapter, InternalAxiosRequestConfig, AxiosResponse } from 'ax
 // authStore mock
 // ---------------------------------------------------------------------------
 
+// clearAuth / setAccessToken은 실제 store 동작과 동기화한다.
+// (실제 store는 accessToken을 갱신/제거하므로 다음 request interceptor 실행 시 헤더 부착 여부가 달라진다.)
 const mockState = {
   accessToken: 'test-access-token' as string | null,
-  user: null,
-  setAccessToken: vi.fn(),
-  clearAuth: vi.fn(),
+  user: null as unknown,
+  setAccessToken: vi.fn((token: string) => {
+    mockState.accessToken = token;
+  }),
+  clearAuth: vi.fn(() => {
+    mockState.accessToken = null;
+    mockState.user = null;
+  }),
 };
 
 vi.mock('@/stores/authStore', () => ({
@@ -216,6 +223,190 @@ describe('apiClient — 401 Response Interceptor (토큰 갱신)', () => {
     ).rejects.toBeDefined();
 
     // refresh 호출이 없어야 한다
+    expect(axiosPostSpy).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// isPermitAllGet — permitAll GET 경로 매칭
+// ---------------------------------------------------------------------------
+
+describe('isPermitAllGet', () => {
+  it('GET /api/v1/feeds 는 permitAll로 인식한다', async () => {
+    const { isPermitAllGet } = await import('@/api/client');
+    expect(isPermitAllGet('get', '/api/v1/feeds')).toBe(true);
+  });
+
+  it('GET /api/v1/feeds/123 (상세)는 permitAll로 인식한다', async () => {
+    const { isPermitAllGet } = await import('@/api/client');
+    expect(isPermitAllGet('GET', '/api/v1/feeds/123')).toBe(true);
+  });
+
+  it('GET /api/v1/feeds/123/comments 는 permitAll로 인식한다', async () => {
+    const { isPermitAllGet } = await import('@/api/client');
+    expect(isPermitAllGet('get', '/api/v1/feeds/123/comments')).toBe(true);
+  });
+
+  it('GET /api/v1/feeds/12/comments/34/replies 는 permitAll로 인식한다', async () => {
+    const { isPermitAllGet } = await import('@/api/client');
+    expect(isPermitAllGet('get', '/api/v1/feeds/12/comments/34/replies')).toBe(true);
+  });
+
+  it('GET /api/v1/search 는 permitAll로 인식한다', async () => {
+    const { isPermitAllGet } = await import('@/api/client');
+    expect(isPermitAllGet('get', '/api/v1/search?q=hi')).toBe(true);
+  });
+
+  it('GET /api/v1/search/autocomplete 는 permitAll로 인식한다', async () => {
+    const { isPermitAllGet } = await import('@/api/client');
+    expect(isPermitAllGet('get', '/api/v1/search/autocomplete?q=h&limit=5')).toBe(true);
+  });
+
+  it('POST /api/v1/feeds 는 permitAll이 아니다 (POST는 강등 대상이 아님)', async () => {
+    const { isPermitAllGet } = await import('@/api/client');
+    expect(isPermitAllGet('post', '/api/v1/feeds')).toBe(false);
+  });
+
+  it('GET /api/v1/diaries 는 permitAll이 아니다', async () => {
+    const { isPermitAllGet } = await import('@/api/client');
+    expect(isPermitAllGet('get', '/api/v1/diaries')).toBe(false);
+  });
+
+  it('GET /api/v1/feeds/following (인증 필수)은 permitAll이 아니다', async () => {
+    const { isPermitAllGet } = await import('@/api/client');
+    expect(isPermitAllGet('get', '/api/v1/feeds/following')).toBe(false);
+  });
+
+  it('url에 origin이 포함되어도 path 기준으로 매칭한다', async () => {
+    const { isPermitAllGet } = await import('@/api/client');
+    expect(isPermitAllGet('get', 'https://api.example.com/api/v1/search')).toBe(true);
+  });
+
+  it('url이 비어있으면 false', async () => {
+    const { isPermitAllGet } = await import('@/api/client');
+    expect(isPermitAllGet('get', undefined)).toBe(false);
+    expect(isPermitAllGet('get', '')).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 401 + refresh 실패 → 게스트 강등 회귀 테스트
+// ---------------------------------------------------------------------------
+
+describe('apiClient — refresh 실패 시 게스트 강등', () => {
+  it('permitAll GET 경로의 401 + refresh 실패 시 Authorization 헤더 없이 재시도하여 200을 반환하고, 사용자는 로그아웃되지 않는다', async () => {
+    const { default: apiClient } = await import('@/api/client');
+
+    // refresh 실패
+    axiosPostSpy.mockRejectedValueOnce(new Error('Refresh failed'));
+
+    // window.location.href 세팅 방지 (강등 분기에서는 호출되지 않아야 함)
+    const originalLocation = window.location;
+    const locationStub: { href: string } = { href: '' };
+    Object.defineProperty(window, 'location', {
+      writable: true,
+      value: locationStub,
+    });
+
+    const seenAuthHeaders: Array<string | undefined> = [];
+    let callCount = 0;
+    const mockAdapter: AxiosAdapter = (config) => {
+      callCount++;
+      seenAuthHeaders.push(config.headers.Authorization as string | undefined);
+      if (callCount === 1) {
+        return Promise.reject({
+          response: {
+            status: 401,
+            data: { success: false, error: { code: 'AUTH_001', message: 'invalid token' } },
+          },
+          config,
+        });
+      }
+      // 강등 재시도: 백엔드가 200 게스트 응답을 보낸다고 가정
+      return Promise.resolve({
+        data: { success: true, data: { items: [], hasNext: false }, timestamp: '' },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config,
+      } as AxiosResponse);
+    };
+
+    const response = await apiClient.get('/api/v1/search?q=hi', { adapter: mockAdapter });
+
+    // 첫 호출은 토큰 첨부, 재시도 호출은 _skipAuth 플래그로 헤더 미첨부
+    expect(seenAuthHeaders[0]).toBe('Bearer test-access-token');
+    expect(seenAuthHeaders[1]).toBeUndefined();
+
+    // 200 게스트 응답이 정상 통과
+    expect(response.data).toEqual({ items: [], hasNext: false });
+    expect(callCount).toBe(2);
+
+    // 강등 성공 케이스이므로 인증 상태는 보존되고 로그인 리다이렉트도 없다
+    expect(mockState.clearAuth).not.toHaveBeenCalled();
+    expect(mockState.accessToken).toBe('test-access-token');
+    expect(locationStub.href).toBe('');
+
+    Object.defineProperty(window, 'location', {
+      writable: true,
+      value: originalLocation,
+    });
+  });
+
+  it('인증 필수 경로의 401 + refresh 실패 시 /login으로 리다이렉트하고 reject한다', async () => {
+    const { default: apiClient } = await import('@/api/client');
+
+    axiosPostSpy.mockRejectedValueOnce(new Error('Refresh failed'));
+
+    const originalLocation = window.location;
+    const locationStub: { href: string } = { href: '' };
+    Object.defineProperty(window, 'location', {
+      writable: true,
+      value: locationStub,
+    });
+
+    const mockAdapter: AxiosAdapter = (config) =>
+      Promise.reject({
+        response: {
+          status: 401,
+          data: {},
+        },
+        config,
+      });
+
+    await expect(
+      apiClient.get('/api/v1/diaries', { adapter: mockAdapter }),
+    ).rejects.toBeDefined();
+
+    expect(mockState.clearAuth).toHaveBeenCalled();
+    expect(locationStub.href).toBe('/login');
+
+    Object.defineProperty(window, 'location', {
+      writable: true,
+      value: originalLocation,
+    });
+  });
+
+  it('헤더가 처음부터 없는 게스트 GET 요청은 인터셉터가 건드리지 않고 200을 통과시킨다', async () => {
+    mockState.accessToken = null;
+    const { default: apiClient } = await import('@/api/client');
+
+    let callCount = 0;
+    const mockAdapter: AxiosAdapter = (config) => {
+      callCount++;
+      return Promise.resolve({
+        data: { success: true, data: { items: [], hasNext: false }, timestamp: '' },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config,
+      } as AxiosResponse);
+    };
+
+    const response = await apiClient.get('/api/v1/feeds', { adapter: mockAdapter });
+
+    expect(response.data).toEqual({ items: [], hasNext: false });
+    expect(callCount).toBe(1); // 단 한 번만 호출 — refresh 시도 없음
     expect(axiosPostSpy).not.toHaveBeenCalled();
   });
 });

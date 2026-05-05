@@ -275,6 +275,74 @@ describe('CommentItem', () => {
     });
   });
 
+  // ---- 삭제된 댓글(소프트 삭제) ----
+  describe('삭제된 댓글', () => {
+    it('isDeleted=true이면 "삭제된 댓글입니다." 안내 문구를 표시한다', () => {
+      renderComment({ isDeleted: true, content: '' });
+
+      expect(screen.getByText('삭제된 댓글입니다.')).toBeInTheDocument();
+    });
+
+    it('isDeleted가 undefined이고 content가 빈 문자열이면 삭제 상태로 처리한다', () => {
+      // 백엔드가 isDeleted 필드를 누락한 케이스에 대한 폴백.
+      renderComment({ content: '' });
+
+      expect(screen.getByText('삭제된 댓글입니다.')).toBeInTheDocument();
+    });
+
+    it('삭제된 댓글에는 본문 텍스트를 표시하지 않는다', () => {
+      // 백엔드가 isDeleted=true와 함께 잔여 content를 내려보내도 노출하면 안 된다.
+      renderComment({ isDeleted: true, content: '원래 내용' });
+
+      expect(screen.queryByText('원래 내용')).not.toBeInTheDocument();
+    });
+
+    it('삭제된 댓글에는 좋아요 버튼을 표시하지 않는다', () => {
+      mockIsAuthenticated = true;
+      renderComment({ isDeleted: true, content: '' });
+
+      expect(screen.queryByLabelText('좋아요')).not.toBeInTheDocument();
+      expect(screen.queryByLabelText('좋아요 취소')).not.toBeInTheDocument();
+    });
+
+    it('삭제된 댓글에는 "답글 달기" 버튼을 표시하지 않는다', () => {
+      mockIsAuthenticated = true;
+      renderComment({ isDeleted: true, content: '' }, { isReply: false });
+
+      expect(screen.queryByText('답글 달기')).not.toBeInTheDocument();
+    });
+
+    it('본인이 작성한 삭제된 댓글에도 삭제 버튼을 다시 표시하지 않는다', () => {
+      mockCurrentUserId = 2; // BASE_COMMENT.userId = 2
+      renderComment({ isDeleted: true, content: '' });
+
+      expect(screen.queryByLabelText('댓글 삭제')).not.toBeInTheDocument();
+    });
+
+    it('부모가 삭제된 상태에서도 replyCount > 0이면 대댓글 토글을 표시한다', () => {
+      // 부모 삭제 시에도 자식 대댓글은 정상 노출되어야 한다는 명세.
+      renderComment(
+        { isDeleted: true, content: '', replyCount: 2 },
+        { isReply: false },
+      );
+
+      expect(screen.getByText('대댓글 2개 보기')).toBeInTheDocument();
+    });
+
+    it('대댓글 토글을 누르면 부모가 삭제됐어도 renderReplies가 호출된다', () => {
+      const renderReplies = vi.fn().mockReturnValue(<div>대댓글 목록</div>);
+      renderComment(
+        { isDeleted: true, content: '', replyCount: 1 },
+        { isReply: false, renderReplies },
+      );
+
+      fireEvent.click(screen.getByText('대댓글 1개 보기'));
+
+      expect(renderReplies).toHaveBeenCalledWith(BASE_COMMENT.id);
+      expect(screen.getByText('대댓글 목록')).toBeInTheDocument();
+    });
+  });
+
   // ---- 기본 렌더링 ----
   describe('기본 렌더링', () => {
     it('댓글 내용을 표시한다', () => {
