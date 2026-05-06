@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Search, X } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 import Spinner from '@/components/common/Spinner';
 import SearchResultCard from '@/components/search/SearchResultCard';
@@ -61,16 +62,36 @@ function toInstant(date: string, end = false): string | undefined {
 // ---------------------------------------------------------------------------
 
 export default function SearchPage() {
-  // 입력 중 상태
-  const [input, setInput] = useState('');
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // 입력 중 상태 — URL 파라미터로 초기값 복원
+  const [input, setInput] = useState(() => searchParams.get('q') ?? '');
   // 실제 검색 트리거 키워드 (엔터/제안 클릭 시 input → submitted 복사)
-  const [submitted, setSubmitted] = useState('');
-  const [activeType, setActiveType] = useState<SearchType>('ALL');
+  const [submitted, setSubmitted] = useState(() => searchParams.get('q') ?? '');
+  const [activeType, setActiveType] = useState<SearchType>(() => {
+    const t = searchParams.get('type');
+    return (t === 'DIARY' || t === 'FEED' ? t : 'ALL') as SearchType;
+  });
 
   // 기간 필터 (yyyy-MM-dd, date input 값)
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
-  const [filterOpen, setFilterOpen] = useState(false);
+  const [fromDate, setFromDate] = useState(() => searchParams.get('from') ?? '');
+  const [toDate, setToDate] = useState(() => searchParams.get('to') ?? '');
+  // 기간 필터가 복원된 경우 패널을 자동으로 연다
+  const [filterOpen, setFilterOpen] = useState(
+    () => !!(searchParams.get('from') || searchParams.get('to')),
+  );
+
+  // 검색 상태를 URL에 동기화 — 뒤로가기 시 상태 복원을 위해 replace 사용
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (submitted) params.set('q', submitted);
+    if (activeType !== 'ALL') params.set('type', activeType);
+    if (fromDate) params.set('from', fromDate);
+    if (toDate) params.set('to', toDate);
+    const qs = params.toString();
+    router.replace(`/search${qs ? `?${qs}` : ''}`, { scroll: false });
+  }, [submitted, activeType, fromDate, toDate, router]);
 
   // 자동완성 디바운싱
   const [debouncedInput, setDebouncedInput] = useState('');
@@ -174,15 +195,22 @@ export default function SearchPage() {
             <Search size={16} aria-hidden="true" />
           </span>
           <input
-            type="search"
+            type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onFocus={() => setIsInputFocused(true)}
             onBlur={handleSearchBlur}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                commitSearch(input);
+              }
+            }}
             placeholder="검색어를 입력하세요"
             aria-label="검색어"
             className="w-full rounded-full border border-border bg-surface py-2.5 pl-9 pr-9 text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent"
           />
+          <button type="submit" className="sr-only" tabIndex={-1}>검색</button>
           {input.length > 0 && (
             <button
               type="button"

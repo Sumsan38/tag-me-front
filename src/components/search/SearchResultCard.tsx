@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { BookOpen, MessageSquare } from 'lucide-react';
-import { formatDistanceToNow, parseISO } from 'date-fns';
+import { format, formatDistanceToNow, parse, parseISO } from 'date-fns';
 import { ko } from 'date-fns/locale';
 
 import Badge from '@/components/common/Badge';
@@ -38,13 +38,11 @@ export default function SearchResultCard({ result }: SearchResultCardProps) {
     ? ROUTES.DIARY_DETAIL(String(result.id))
     : ROUTES.FEED_DETAIL(String(result.id));
 
-  const fallbackTitle = isDiary ? '제목 없는 일기' : '제목 없는 게시글';
-  const titleText = result.title?.trim() || fallbackTitle;
+  const title = result.title?.trim() || null;
 
-  const relativeTime = formatDistanceToNow(parseISO(result.createdAt), {
-    addSuffix: true,
-    locale: ko,
-  });
+  const dateLabel = isDiary && result.diaryDate
+    ? format(parse(result.diaryDate, 'yyyy-MM-dd', new Date()), 'yyyy.MM.dd')
+    : formatDistanceToNow(parseISO(result.createdAt), { addSuffix: true, locale: ko });
 
   const Icon = isDiary ? BookOpen : MessageSquare;
   const typeLabel = isDiary ? '일기' : '피드';
@@ -54,21 +52,27 @@ export default function SearchResultCard({ result }: SearchResultCardProps) {
       href={href}
       className="block rounded-lg border border-border bg-surface p-4 transition-colors hover:bg-[#FAFAF8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
     >
-      {/* Header: type + 작성일 */}
+      {/* Header: type + 날짜 */}
       <div className="flex items-center gap-1.5 text-xs text-muted">
         <Icon size={14} aria-hidden="true" />
         <span className="font-medium">{typeLabel}</span>
         <span aria-hidden="true">·</span>
-        <span>{relativeTime}</span>
+        <span>{dateLabel}</span>
       </div>
 
-      {/* Title */}
-      <h3 className="mt-1.5 text-sm font-semibold text-foreground line-clamp-1">
-        {titleText}
-      </h3>
+      {/* 제목: 있을 때만 표시 */}
+      {title && (
+        <h3 className="mt-1.5 text-sm font-semibold text-foreground line-clamp-1">
+          {title}
+        </h3>
+      )}
 
-      {/* 본문 발췌 (또는 하이라이팅 조각) */}
-      {result.highlights.length > 0 ? (
+      {/* 본문 일부: contentSnippet 항상 표시, 없으면 highlights */}
+      {result.contentSnippet ? (
+        <p className="mt-1 text-xs text-sub line-clamp-2 leading-relaxed">
+          {result.contentSnippet}
+        </p>
+      ) : result.highlights.length > 0 ? (
         <ul className="mt-1 space-y-0.5">
           {result.highlights.map((fragment, idx) => (
             <li
@@ -79,13 +83,7 @@ export default function SearchResultCard({ result }: SearchResultCardProps) {
             </li>
           ))}
         </ul>
-      ) : (
-        result.contentSnippet && (
-          <p className="mt-1 text-xs text-sub line-clamp-2 leading-relaxed">
-            {result.contentSnippet}
-          </p>
-        )
-      )}
+      ) : null}
 
       {/* 태그. Badge tag variant가 # prefix와 팔레트 색상을 자동 적용한다. */}
       {result.tags.length > 0 && (

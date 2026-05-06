@@ -59,6 +59,8 @@ export interface SearchResult {
   tags: string[];
   highlights: string[];
   createdAt: string;
+  /** DIARY 전용 일기 날짜 (yyyy-MM-dd). FEED는 null. */
+  diaryDate: string | null;
 }
 
 // ---------------------------------------------------------------------------
