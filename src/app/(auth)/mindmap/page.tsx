@@ -138,7 +138,15 @@ export default function MindmapPage() {
     [periodType, baseDate, customRange],
   );
 
-  const { data, isLoading, isError } = useMindmap(periodParams);
+  const apiParams = useMemo(
+    () =>
+      periodParams
+        ? { ...periodParams, source: sourceFilter.toLowerCase() }
+        : null,
+    [periodParams, sourceFilter],
+  );
+
+  const { data, isLoading, isError } = useMindmap(apiParams);
 
   // 데이터가 도착하면 뒤로가기 패널 상태를 한 번만 복원하고 URL을 정리한다
   useEffect(() => {
@@ -168,25 +176,12 @@ export default function MindmapPage() {
     }
   }, [data, router]);
 
-  const allNodes = data?.nodes ?? [];
-  const allEdges = data?.edges ?? [];
-
-  const filteredNodes = useMemo(
-    () =>
-      sourceFilter === 'all'
-        ? allNodes
-        : allNodes.filter((n) => n.primarySource === sourceFilter),
-    [allNodes, sourceFilter],
-  );
-
-  const filteredEdges = useMemo(() => {
-    const ids = new Set(filteredNodes.map((n) => n.tagId));
-    return allEdges.filter((e) => ids.has(e.tagIdA) && ids.has(e.tagIdB));
-  }, [allEdges, filteredNodes]);
+  const nodes = data?.nodes ?? [];
+  const edges = data?.edges ?? [];
 
   const nodeMap = useMemo(
-    () => new Map(allNodes.map((n) => [n.tagId, n])),
-    [allNodes],
+    () => new Map(nodes.map((n) => [n.tagId, n])),
+    [nodes],
   );
 
   const handleNodeClick = useCallback((node: NodeResponse) => {
@@ -288,7 +283,7 @@ export default function MindmapPage() {
               <p className="text-sm font-semibold text-text">데이터를 불러올 수 없어요</p>
               <p className="text-xs text-sub max-w-[200px]">잠시 후 다시 시도해 주세요.</p>
             </div>
-          ) : filteredNodes.length === 0 ? (
+          ) : nodes.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full gap-3 text-center">
               <div className="w-16 h-16 rounded-full bg-surface flex items-center justify-center shadow-card">
                 <span className="text-3xl">🌱</span>
@@ -300,9 +295,9 @@ export default function MindmapPage() {
             </div>
           ) : (
             <MindmapVisualization
-              key={`${periodType}-${baseDate.getTime()}-${customRange?.from?.getTime() ?? ''}-${customRange?.to?.getTime() ?? ''}`}
-              nodes={filteredNodes}
-              edges={filteredEdges}
+              key={`${periodType}-${baseDate.getTime()}-${customRange?.from?.getTime() ?? ''}-${customRange?.to?.getTime() ?? ''}-${sourceFilter}`}
+              nodes={nodes}
+              edges={edges}
               onNodeClick={handleNodeClick}
               onEdgeClick={handleEdgeClick}
               selectedNodeId={selectedNodeId}
