@@ -520,6 +520,7 @@
 > - `type` (선택, 기본 `ALL`) — `DIARY` | `FEED` | `ALL` **대문자 enum**. 잘못된 값 → 400
 > - `from`, `to` (선택) — ISO-8601 Instant (예: `2026-01-01T00:00:00Z`). 포맷 오류 → 400
 > - `tags` (선택) — 콤마 구분(`tags=a,b`) 또는 반복(`tags=a&tags=b`) 둘 다 허용. **빈/공백 element는 서버가 자동 제거** → 클라이언트 사전 정리 불필요
+> - `authorId` (선택, Long, 양수) — 특정 작성자 userId로 결과 필터링. **숫자 ID를 직접 전달**, 닉네임 불가. feed는 해당 authorId의 공개 피드만 반환. diary는 `authorId == 본인 userId`일 때만 결과 있음 (타인 지정 시 diary 결과 0건).
 > - `cursor` (선택) — 백엔드가 발급한 인코딩 문자열 그대로 패스스루. **최대 4096자**, 초과 시 400
 > - `size` (선택, 기본 `20`, 최대 `100`) — 1~100 범위 외 → 400
 >
@@ -597,7 +598,7 @@
 
 **8주차 후속 — 1차 PR 이후로 분리 (2026-05-05 Codex 2차 리뷰)**
 - [ ] **태그 필터 UI 와이어**: `SearchFilter.tags`/`api/search.ts`/`useSearch`까지는 1차에서 준비됨. 페이지에 다중 태그 칩 입력 + 활성 필터에 포함시키는 작업만 남음. (`TagInput` 컴포넌트 재사용 검토)
-- [ ] **작성자 필터**: 백엔드 `/api/v1/search` 요청 파라미터에 `author`가 없음. 백엔드 추가 후 프론트 연동.
+- [ ] **작성자 필터 UI**: 백엔드 `authorId` 파라미터는 구현 완료 (2026-05-07). UX에서 닉네임으로 작성자를 선택하려면 닉네임 → userId 변환 API(`GET /api/v1/users/search?nickname=xxx`)가 필요하며, 이는 **Follow 기능 구현 시 함께 제공 예정**. 그 전까지 검색 페이지의 "작성자 필터는 추후 추가됩니다." 안내 유지. Follow API 완성 후 `authorId` 직렬화는 `api/search.ts`에 이미 추가되어 있으므로 UI만 연결하면 됨.
 - [ ] **검색 결과 카드 제목 하이라이팅**: 백엔드 `SearchResponse.highlights`는 본문 발췌 전용 단일 배열이라 제목은 평문으로 노출 중. 클라이언트 사이드에서 검색 키워드 일치 부분을 `<mark>`로 감싸는 헬퍼 추가가 필요 (정규식 escape, 다중 단어 처리 주의).
 - [ ] **자동완성 드롭다운 키보드 내비게이션**: ↑/↓ 항목 포커스, Enter 확정, Esc 닫기 — `role="listbox"` 시맨틱과 짝을 맞춤.
 - [ ] **자동완성 디바운스 공용 훅**: `useDebouncedValue`를 `useTagAutocomplete`/검색 페이지 양쪽에서 재사용하도록 추출.
@@ -627,6 +628,7 @@
   - `api/social.ts`: `follow(userId)`, `unfollow(userId)`, `getFollowers(userId)`, `getFollowing(userId)`
   - `hooks/useFollow.ts`: `useFollow()`, `useUnfollow()` mutation
   - 프로필 페이지에 팔로우 버튼
+  - 백엔드에서 `GET /api/v1/users/search?nickname=xxx` (닉네임 → userId 변환 API) 함께 제공 예정 → 완성되면 검색 페이지 작성자 필터 UI 연결 (`authorId` 직렬화는 `api/search.ts`에 이미 준비됨)
 - [ ] **사용자 프로필 페이지** (`src/app/(main)/profile/[id]/page.tsx`, SSR):
 - [ ] **사용자 프로필 페이지** (`src/app/(public)/users/[id]/page.tsx`, SSR):
   - 프로필 이미지, 닉네임, 팔로워/팔로잉 수

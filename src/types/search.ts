@@ -93,6 +93,9 @@ export interface SearchResponse {
  * - type: 기본 'ALL'. 'DIARY' | 'FEED' | 'ALL' 외 값 → 400.
  * - from / to: ISO-8601 Instant (예: '2026-01-01T00:00:00Z'). 형식 오류 → 400.
  * - tags: 복수 태그. 빈/공백 element는 서버가 제거하므로 클라이언트 정리 불필요.
+ * - authorId: 특정 작성자 필터 (optional, positive Long).
+ *     feed — 해당 authorId의 공개 피드만 반환 (타인 지정 가능).
+ *     diary — 항상 JWT 토큰의 본인 소유만 반환하므로 authorId가 본인 id와 다르면 0건.
  * - cursor: 직전 응답의 nextCursor 그대로 전달. 4096자 초과 → 400.
  * - size: 1~100. 기본 20. 범위 외 → 400.
  */
@@ -102,6 +105,7 @@ export interface SearchFilter {
   from?: string;
   to?: string;
   tags?: string[];
+  authorId?: number;
   cursor?: string;
   size?: number;
 }

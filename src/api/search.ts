@@ -37,6 +37,7 @@ export async function search(filter: SearchFilter): Promise<SearchResponse> {
   if (filter.from) params.from = filter.from;
   if (filter.to) params.to = filter.to;
   if (filter.tags && filter.tags.length > 0) params.tags = filter.tags;
+  if (filter.authorId !== undefined) params.authorId = filter.authorId;
   if (filter.cursor) params.cursor = filter.cursor;
   if (filter.size !== undefined) params.size = filter.size;
 

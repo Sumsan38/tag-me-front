@@ -57,3 +57,42 @@ export function renderHighlightedFragment(fragment: string): ReactNode[] {
 
   return nodes;
 }
+
+/**
+ * 평문 텍스트에서 query와 일치하는 부분을 <mark>로 강조한다.
+ *
+ * 클라이언트 사이드 제목 하이라이팅에 사용한다.
+ * 백엔드 highlights[]는 본문 발췌 전용이므로 제목에는 이 함수를 쓴다.
+ *
+ * 동작 규칙:
+ *   - query를 공백으로 분리해 각 단어별로 매칭 (다중 단어 지원).
+ *   - 단어 길이가 0이면 건너뛴다 (연속 공백 방어).
+ *   - 정규식 특수문자를 escape해 ReDoS를 방지한다.
+ *   - 대소문자 무시 (i flag).
+ *   - 일치 없으면 원본 문자열을 그대로 반환한다.
+ */
+export function highlightText(text: string, query: string): ReactNode[] {
+  if (!text) return [];
+  const words = query
+    .split(/\s+/)
+    .map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    .filter(Boolean);
+  if (words.length === 0) return [text];
+
+  const splitPattern = new RegExp(`(${words.join('|')})`, 'gi');
+  const matchPattern = new RegExp(`^(${words.join('|')})$`, 'i');
+  const parts = text.split(splitPattern);
+
+  return parts.map((part, i) =>
+    matchPattern.test(part) ? (
+      <mark
+        key={i}
+        className="bg-yellow-100 text-foreground font-semibold rounded px-0.5"
+      >
+        {part}
+      </mark>
+    ) : (
+      part
+    ),
+  );
+}

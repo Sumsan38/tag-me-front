@@ -8,7 +8,7 @@ import { ko } from 'date-fns/locale';
 import Badge from '@/components/common/Badge';
 import { ROUTES } from '@/constants/routes';
 import type { SearchResult } from '@/types/search';
-import { renderHighlightedFragment } from '@/utils/highlight';
+import { renderHighlightedFragment, highlightText } from '@/utils/highlight';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -16,6 +16,7 @@ import { renderHighlightedFragment } from '@/utils/highlight';
 
 export interface SearchResultCardProps {
   result: SearchResult;
+  query?: string;   // 검색어. 있으면 제목에 하이라이팅 적용.
 }
 
 // ---------------------------------------------------------------------------
@@ -31,7 +32,7 @@ export interface SearchResultCardProps {
  *   일치 발췌가 없을 때만 contentSnippet(평문)을 노출한다 — 두 데이터의 의미가 중복되기 때문.
  * - 클릭 시 타입에 따라 일기 상세 / 피드 상세로 이동한다.
  */
-export default function SearchResultCard({ result }: SearchResultCardProps) {
+export default function SearchResultCard({ result, query }: SearchResultCardProps) {
   const isDiary = result.type === 'DIARY';
 
   const href = isDiary
@@ -63,7 +64,7 @@ export default function SearchResultCard({ result }: SearchResultCardProps) {
       {/* 제목: 있을 때만 표시 */}
       {title && (
         <h3 className="mt-1.5 text-sm font-semibold text-foreground line-clamp-1">
-          {title}
+          {query ? highlightText(title, query) : title}
         </h3>
       )}
 

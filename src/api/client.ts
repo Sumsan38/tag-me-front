@@ -29,6 +29,9 @@ import axios, {
 } from 'axios';
 import { ROUTES } from '@/constants/routes';
 import { useAuthStore } from '@/stores/authStore';
+import { isAuthEndpoint, isPermitAllGet } from '@/constants/apiPatterns';
+
+export { isPermitAllGet } from '@/constants/apiPatterns';
 
 // ---------------------------------------------------------------------------
 // 타입 정의
@@ -91,66 +94,6 @@ function setAccessToken(accessToken: string): void {
  */
 function clearAuthState(): void {
   useAuthStore.getState().clearAuth();
-}
-
-// ---------------------------------------------------------------------------
-// 토큰 갱신 제외 경로
-// ---------------------------------------------------------------------------
-
-/**
- * 401 응답 시 토큰 갱신(Silent Refresh)을 시도하지 않을 경로 목록.
- * 로그인·회원가입 등 인증 엔드포인트 자체의 401은
- * "잘못된 credentials" 의미이므로 갱신 대상이 아니다.
- */
-const AUTH_ENDPOINTS = [
-  '/api/v1/auth/login',
-  '/api/v1/auth/register',
-  '/api/v1/auth/refresh',
-];
-
-function isAuthEndpoint(url: string | undefined): boolean {
-  if (!url) return false;
-  return AUTH_ENDPOINTS.some((endpoint) => url.includes(endpoint));
-}
-
-// ---------------------------------------------------------------------------
-// permitAll GET 경로 (게스트 강등 대상)
-// ---------------------------------------------------------------------------
-
-/**
- * 백엔드가 비로그인 호출도 허용하는 GET 엔드포인트 패턴.
- * invalid 토큰으로 인한 401 + refresh 실패 시, 헤더를 제거하고 재시도하면
- * 백엔드가 게스트 응답(200)을 내려준다. 사용자 강제 로그아웃을 막는 안전장치이다.
- */
-// feedId/commentId는 숫자형 ID로 제한해 /feeds/following 같은 인증 필수 sub-route를
-// 우연히 강등 대상으로 잡지 않도록 한다.
-const PERMIT_ALL_GET_PATTERNS: ReadonlyArray<RegExp> = [
-  /^\/api\/v1\/feeds$/,
-  /^\/api\/v1\/feeds\/\d+$/,
-  /^\/api\/v1\/feeds\/\d+\/comments$/,
-  /^\/api\/v1\/feeds\/\d+\/comments\/\d+\/replies$/,
-  /^\/api\/v1\/search$/,
-  /^\/api\/v1\/search\/autocomplete$/,
-];
-
-/**
- * 주어진 method+url이 게스트 강등 가능한 permitAll GET인지 판정한다.
- *
- * - method가 GET이 아닐 경우 항상 false (POST 등은 강등하면 멱등성을 깬다).
- * - url에 query string이나 origin이 포함되어 있어도 안전하게 path만 추출해 매칭.
- * - 호출자가 url을 비워서 호출한 비정상 케이스는 false.
- *
- * 테스트를 위해 export한다.
- */
-export function isPermitAllGet(
-  method: string | undefined,
-  url: string | undefined,
-): boolean {
-  if (!url) return false;
-  if ((method ?? 'get').toLowerCase() !== 'get') return false;
-  // origin과 query 제거 후 path만 비교
-  const path = url.split('?')[0].replace(/^https?:\/\/[^/]+/, '');
-  return PERMIT_ALL_GET_PATTERNS.some((pattern) => pattern.test(path));
 }
 
 // ---------------------------------------------------------------------------

@@ -6,7 +6,9 @@ import { useRouter, useSearchParams } from 'next/navigation';
 
 import Spinner from '@/components/common/Spinner';
 import SearchResultCard from '@/components/search/SearchResultCard';
+import TagInput from '@/components/tag/TagInput';
 import { useSearch, useSearchAutocomplete } from '@/hooks/useSearch';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { getErrorMessage } from '@/api/error';
 import type { SearchType } from '@/types/search';
 
@@ -77,10 +79,12 @@ export default function SearchPage() {
   // 기간 필터 (yyyy-MM-dd, date input 값)
   const [fromDate, setFromDate] = useState(() => searchParams.get('from') ?? '');
   const [toDate, setToDate] = useState(() => searchParams.get('to') ?? '');
-  // 기간 필터가 복원된 경우 패널을 자동으로 연다
-  const [filterOpen, setFilterOpen] = useState(
-    () => !!(searchParams.get('from') || searchParams.get('to')),
-  );
+  // 태그 필터 (URL 파라미터 복원 포함)
+  const [filterTags, setFilterTags] = useState<string[]>(() => {
+    const tagsParam = searchParams.get('tags');
+    return tagsParam ? tagsParam.split(',').filter(Boolean) : [];
+  });
+
 
   // 검색 상태를 URL에 동기화 — 뒤로가기 시 상태 복원을 위해 replace 사용
   useEffect(() => {
@@ -89,18 +93,13 @@ export default function SearchPage() {
     if (activeType !== 'ALL') params.set('type', activeType);
     if (fromDate) params.set('from', fromDate);
     if (toDate) params.set('to', toDate);
+    if (filterTags.length > 0) params.set('tags', filterTags.join(','));
     const qs = params.toString();
     router.replace(`/search${qs ? `?${qs}` : ''}`, { scroll: false });
-  }, [submitted, activeType, fromDate, toDate, router]);
+  }, [submitted, activeType, fromDate, toDate, filterTags, router]);
 
   // 자동완성 디바운싱
-  const [debouncedInput, setDebouncedInput] = useState('');
-  useEffect(() => {
-    const handle = setTimeout(() => {
-      setDebouncedInput(input);
-    }, AUTOCOMPLETE_DEBOUNCE_MS);
-    return () => clearTimeout(handle);
-  }, [input]);
+  const debouncedInput = useDebouncedValue(input, AUTOCOMPLETE_DEBOUNCE_MS);
 
   // 자동완성 드롭다운 표시 여부 (포커스 + 입력 존재 시).
   // blur가 발생해도 relatedTarget이 자동완성 컨테이너 내부면 닫지 않는다 — setTimeout
@@ -108,6 +107,14 @@ export default function SearchPage() {
   const [isInputFocused, setIsInputFocused] = useState(false);
   const autocompleteContainerRef = useRef<HTMLDivElement>(null);
   const showAutocomplete = isInputFocused && debouncedInput.trim().length > 0;
+
+  // 키보드 내비게이션 인덱스
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+
+  // debouncedInput이 바뀌면 하이라이트 초기화
+  useEffect(() => {
+    setHighlightedIndex(-1);
+  }, [debouncedInput]);
 
   function handleSearchBlur(e: React.FocusEvent<HTMLInputElement>) {
     const next = e.relatedTarget;
@@ -129,8 +136,9 @@ export default function SearchPage() {
       type: activeType,
       from: toInstant(fromDate, false),
       to: toInstant(toDate, true),
+      tags: filterTags.length > 0 ? filterTags : undefined,
     }),
-    [submitted, activeType, fromDate, toDate],
+    [submitted, activeType, fromDate, toDate, filterTags],
   );
   const searchQuery = useSearch(filter);
 
@@ -183,11 +191,58 @@ export default function SearchPage() {
 
   function handleSelectSuggestion(name: string) {
     setInput(name);
+    setHighlightedIndex(-1);
     commitSearch(name);
   }
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-6">
+      {/* ── 필터 바 (항상 표시) ─────────────────────────── */}
+      <div className="mb-4 overflow-hidden rounded-lg border border-border bg-surface text-xs">
+        {/* 날짜 행 */}
+        <div className="flex items-center gap-2 px-3 py-2">
+          <span className="shrink-0 text-sub">날짜</span>
+          <input
+            type="date"
+            value={fromDate}
+            onChange={(e) => setFromDate(e.target.value)}
+            className="rounded border border-border bg-background px-2 py-1 text-xs text-foreground"
+          />
+          <span className="text-muted" aria-hidden="true">~</span>
+          <input
+            type="date"
+            value={toDate}
+            onChange={(e) => setToDate(e.target.value)}
+            className="rounded border border-border bg-background px-2 py-1 text-xs text-foreground"
+          />
+          {(fromDate || toDate) && (
+            <button
+              type="button"
+              onClick={() => { setFromDate(''); setToDate(''); }}
+              aria-label="기간 초기화"
+              className="ml-auto text-muted hover:text-foreground"
+            >
+              <X size={12} />
+            </button>
+          )}
+        </div>
+        {/* 구분선 */}
+        <div className="border-t border-border" />
+        {/* 태그 행 */}
+        <div className="flex items-center gap-2 px-3 py-2">
+          <span className="shrink-0 text-sub">태그</span>
+          <div className="flex-1">
+            <TagInput
+              tags={filterTags}
+              onChange={setFilterTags}
+              placeholder="태그 필터"
+              maxTags={5}
+              id="search-tag-filter"
+            />
+          </div>
+        </div>
+      </div>
+
       {/* ── 검색바 ───────────────────────────────────────── */}
       <form onSubmit={handleSubmit} role="search">
         <div className="relative">
@@ -201,13 +256,34 @@ export default function SearchPage() {
             onFocus={() => setIsInputFocused(true)}
             onBlur={handleSearchBlur}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') {
+              const suggestions = autocompleteQuery.data ?? [];
+              if (e.key === 'ArrowDown') {
                 e.preventDefault();
-                commitSearch(input);
+                if (showAutocomplete && suggestions.length > 0) {
+                  setHighlightedIndex((prev) => Math.min(prev + 1, suggestions.length - 1));
+                }
+              } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                setHighlightedIndex((prev) => Math.max(prev - 1, -1));
+              } else if (e.key === 'Escape') {
+                setIsInputFocused(false);
+                setHighlightedIndex(-1);
+              } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (showAutocomplete && highlightedIndex >= 0 && suggestions[highlightedIndex]) {
+                  handleSelectSuggestion(suggestions[highlightedIndex].name);
+                } else {
+                  commitSearch(input);
+                }
               }
             }}
             placeholder="검색어를 입력하세요"
             aria-label="검색어"
+            aria-activedescendant={
+              showAutocomplete && highlightedIndex >= 0
+                ? `autocomplete-item-${highlightedIndex}`
+                : undefined
+            }
             className="w-full rounded-full border border-border bg-surface py-2.5 pl-9 pr-9 text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent"
           />
           <button type="submit" className="sr-only" tabIndex={-1}>검색</button>
@@ -235,14 +311,18 @@ export default function SearchPage() {
                   <Spinner size="sm" />
                 </div>
               ) : autocompleteQuery.data && autocompleteQuery.data.length > 0 ? (
-                autocompleteQuery.data.map((item) => (
+                autocompleteQuery.data.map((item, index) => (
                   <button
-                    key={item.name}
+                    key={`${item.name}-${index}`}
+                    id={`autocomplete-item-${index}`}
                     type="button"
                     role="option"
-                    aria-selected="false"
+                    aria-selected={highlightedIndex === index}
                     onClick={() => handleSelectSuggestion(item.name)}
-                    className="block w-full px-3 py-2 text-left text-sm text-foreground hover:bg-[#FAFAF8]"
+                    className={[
+                      'block w-full px-3 py-2 text-left text-sm text-foreground',
+                      highlightedIndex === index ? 'bg-[#FAFAF8]' : 'hover:bg-[#FAFAF8]',
+                    ].join(' ')}
                   >
                     {item.name}
                   </button>
@@ -288,61 +368,8 @@ export default function SearchPage() {
           );
         })}
 
-        <button
-          type="button"
-          onClick={() => setFilterOpen((v) => !v)}
-          aria-expanded={filterOpen}
-          aria-controls="search-filter-panel"
-          className="ml-auto self-center text-xs text-sub hover:text-foreground"
-        >
-          {filterOpen ? '필터 닫기' : '필터 열기'}
-        </button>
       </div>
 
-      {/* ── 필터 패널 (기간만 1차 구현, 태그/작성자는 후속) ── */}
-      {filterOpen && (
-        <div
-          id="search-filter-panel"
-          className="mt-3 rounded-lg border border-border bg-surface p-3 text-xs"
-        >
-          <div className="flex flex-wrap items-center gap-2">
-            <label className="flex items-center gap-1.5">
-              <span className="text-sub">시작일</span>
-              <input
-                type="date"
-                value={fromDate}
-                onChange={(e) => setFromDate(e.target.value)}
-                className="rounded border border-border bg-background px-2 py-1 text-xs text-foreground"
-              />
-            </label>
-            <span className="text-muted" aria-hidden="true">~</span>
-            <label className="flex items-center gap-1.5">
-              <span className="text-sub">종료일</span>
-              <input
-                type="date"
-                value={toDate}
-                onChange={(e) => setToDate(e.target.value)}
-                className="rounded border border-border bg-background px-2 py-1 text-xs text-foreground"
-              />
-            </label>
-            {(fromDate || toDate) && (
-              <button
-                type="button"
-                onClick={() => {
-                  setFromDate('');
-                  setToDate('');
-                }}
-                className="ml-auto text-xs text-sub hover:text-foreground"
-              >
-                기간 초기화
-              </button>
-            )}
-          </div>
-          <p className="mt-2 text-[11px] text-muted">
-            태그·작성자 필터는 후속 업데이트로 추가됩니다.
-          </p>
-        </div>
-      )}
 
       {/* ── 결과 영역 ─────────────────────────────────────── */}
       {/*
@@ -399,6 +426,7 @@ export default function SearchPage() {
           <SearchResultCard
             key={`${result.type}-${result.id}`}
             result={result}
+            query={submitted}
           />
         ))}
 
