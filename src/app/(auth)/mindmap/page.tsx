@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { Info, Loader2 } from 'lucide-react';
+import { Info, Loader2, Search, X } from 'lucide-react';
 import { format, startOfWeek, parse } from 'date-fns';
 import {
   MindmapVisualization,
@@ -127,6 +127,7 @@ export default function MindmapPage() {
   const [sourceFilter, setSourceFilter] = useState<SourceFilterValue>('all');
   const [panel, setPanel] = useState<PanelState>({ kind: 'none' });
   const [showLegend, setShowLegend] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const restoreNodeId = useRef(Number(searchParams.get('nodeId')) || null);
   const restoreEdgeA  = useRef(Number(searchParams.get('edgeTagIdA')) || null);
@@ -204,7 +205,10 @@ export default function MindmapPage() {
 
   const handleClose = useCallback(() => setPanel({ kind: 'none' }), []);
 
-  const resetPanel = useCallback(() => setPanel({ kind: 'none' }), []);
+  const resetPanel = useCallback(() => {
+    setPanel({ kind: 'none' });
+    setSearchQuery('');
+  }, []);
 
   const panelOpen = panel.kind !== 'none';
   const selectedNodeId = panel.kind === 'node' ? panel.node.tagId : null;
@@ -266,10 +270,37 @@ export default function MindmapPage() {
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0">
         {/* Canvas */}
         <div
-          className="flex-1 min-w-0 min-h-0"
+          className="flex-1 min-w-0 min-h-0 relative"
           style={{ background: 'radial-gradient(ellipse 80% 70% at 50% 50%, #F4F2EE 0%, #EFEDE8 100%)' }}
           onClick={() => setPanel({ kind: 'none' })}
         >
+          {!isLoading && !isError && nodes.length > 0 && (
+            <div
+              className="absolute top-3 left-1/2 -translate-x-1/2 z-10 flex items-center"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="relative flex items-center">
+                <Search size={13} className="absolute left-3 text-muted pointer-events-none" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Escape') setSearchQuery(''); }}
+                  placeholder="태그 검색…"
+                  className="w-52 pl-8 pr-8 py-1.5 text-sm rounded-full border border-border bg-surface/90 backdrop-blur-sm shadow-card focus:outline-none focus:ring-2 focus:ring-blue-500/20 placeholder:text-muted"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3 text-muted hover:text-text transition-colors"
+                    aria-label="검색어 지우기"
+                  >
+                    <X size={13} />
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
           {isLoading ? (
             <div className="flex flex-col items-center justify-center h-full gap-3">
               <Loader2 size={28} className="animate-spin text-muted" />
@@ -301,6 +332,7 @@ export default function MindmapPage() {
               onNodeClick={handleNodeClick}
               onEdgeClick={handleEdgeClick}
               selectedNodeId={selectedNodeId}
+              searchQuery={searchQuery}
             />
           )}
         </div>

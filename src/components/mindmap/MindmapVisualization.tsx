@@ -65,6 +65,7 @@ interface Props {
   onNodeClick: (node: NodeResponse) => void;
   onEdgeClick?: (edge: EdgeResponse) => void;
   selectedNodeId?: number | null;
+  searchQuery?: string;
 }
 
 export default function MindmapVisualization({
@@ -73,6 +74,7 @@ export default function MindmapVisualization({
   onNodeClick,
   onEdgeClick,
   selectedNodeId,
+  searchQuery,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -95,6 +97,9 @@ export default function MindmapVisualization({
 
     const width = container.clientWidth || 800;
     const height = container.clientHeight || 600;
+    const simMultiplier = nodes.length <= 20 ? 2 : nodes.length <= 40 ? 2.5 : 3;
+    const simWidth = width * simMultiplier;
+    const simHeight = height * simMultiplier;
 
     // Defs: glow filters
     const defs = svg.append('defs');
@@ -115,9 +120,12 @@ export default function MindmapVisualization({
       .scaleExtent([0.2, 5])
       .on('zoom', (e) => g.attr('transform', e.transform));
     svg.call(zoom).on('dblclick.zoom', null);
+    svg.call(zoom.transform, d3.zoomIdentity.translate(-(simWidth - width) / 2, -(simHeight - height) / 2));
 
+    const minCount = d3.min(nodes, (d) => d.totalCount) ?? 0;
     const maxCount = d3.max(nodes, (d) => d.totalCount) ?? 10;
-    const rScale = d3.scaleSqrt().domain([0, maxCount]).range([16, 46]);
+    const rDomain: [number, number] = minCount === maxCount ? [0, maxCount] : [minCount, maxCount];
+    const rScale = d3.scaleSqrt().domain(rDomain).range([16, 46]);
     radiusScaleRef.current = rScale;
 
     const maxWeight = d3.max(edges, (d) => d.totalWeight) ?? 8;
@@ -147,7 +155,7 @@ export default function MindmapVisualization({
           .strength(0.25),
       )
       .force('charge', d3.forceManyBody().strength(-350))
-      .force('center', d3.forceCenter(width / 2, height / 2).strength(0.05))
+      .force('center', d3.forceCenter(simWidth / 2, simHeight / 2).strength(0.05))
       .force('collision', d3.forceCollide<SimNode>().radius((d) => rScale(d.data.totalCount) + 14));
 
     // 노드가 캔버스 경계 밖으로 나가지 않도록 위치+속도 동시 클램프
@@ -156,11 +164,11 @@ export default function MindmapVisualization({
         const r = rScale(node.data?.totalCount ?? 5) + 24;
         if (node.x != null) {
           if (node.x < r)         { node.x = r;         if ((node.vx ?? 0) < 0) node.vx = 0; }
-          if (node.x > width - r) { node.x = width - r; if ((node.vx ?? 0) > 0) node.vx = 0; }
+          if (node.x > simWidth - r) { node.x = simWidth - r; if ((node.vx ?? 0) > 0) node.vx = 0; }
         }
         if (node.y != null) {
-          if (node.y < r)          { node.y = r;          if ((node.vy ?? 0) < 0) node.vy = 0; }
-          if (node.y > height - r) { node.y = height - r; if ((node.vy ?? 0) > 0) node.vy = 0; }
+          if (node.y < r)           { node.y = r;           if ((node.vy ?? 0) < 0) node.vy = 0; }
+          if (node.y > simHeight - r) { node.y = simHeight - r; if ((node.vy ?? 0) > 0) node.vy = 0; }
         }
       }
     });
@@ -291,6 +299,26 @@ export default function MindmapVisualization({
       svg.on('.zoom', null);
     };
   }, [nodes, edges]);
+
+  // Search highlight — dims non-matching nodes/edges without restarting simulation
+  useEffect(() => {
+    if (!svgRef.current) return;
+    const query = (searchQuery ?? '').trim().toLowerCase();
+    const svg = d3.select(svgRef.current);
+    if (!query) {
+      svg.selectAll('g.node').attr('opacity', 1);
+      svg.selectAll('g.edge').attr('opacity', 1);
+      return;
+    }
+    svg.selectAll<SVGGElement, SimNode>('g.node')
+      .attr('opacity', (d) => d.data.tagName.toLowerCase().includes(query) ? 1 : 0.15);
+    svg.selectAll<SVGGElement, SimLink>('g.edge')
+      .attr('opacity', (d) => {
+        const s = d.source as SimNode;
+        const t = d.target as SimNode;
+        return (s.data.tagName.toLowerCase().includes(query) || t.data.tagName.toLowerCase().includes(query)) ? 0.8 : 0.08;
+      });
+  }, [searchQuery]);
 
   // Selected node highlight — runs without restarting simulation
   useEffect(() => {
