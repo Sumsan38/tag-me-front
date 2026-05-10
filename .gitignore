@@ -43,3 +43,10 @@ next-env.d.ts
 
 # IDE
 .idea/
+
+# 로컬 데모/시드 스크립트 (평문 자격증명 포함)
+scripts/seed-portfolio-diaries.mjs
+
+# 임시 디버그 산출물
+.tmp-*.png
+tempdemo-cookies.txt

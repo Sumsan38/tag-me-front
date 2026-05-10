@@ -15,6 +15,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/useToast';
 import { getErrorMessage } from '@/api/error';
 import * as diaryApi from '@/api/diary';
+import { mindmapKeys } from '@/hooks/useMindmap';
 import type {
   CreateDiaryRequest,
   UpdateDiaryRequest,
@@ -48,6 +49,7 @@ export function useCreateDiary() {
     mutationFn: (data: CreateDiaryRequest) => diaryApi.createDiary(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: diaryKeys.all });
+      queryClient.invalidateQueries({ queryKey: mindmapKeys.all });
       toast.success('일기가 저장되었습니다.');
     },
     onError: (error) => {
@@ -111,6 +113,7 @@ export function useUpdateDiary() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: diaryKeys.detail(variables.id) });
       queryClient.invalidateQueries({ queryKey: [...diaryKeys.all, 'monthly'] });
+      queryClient.invalidateQueries({ queryKey: mindmapKeys.all });
       toast.success('일기가 수정되었습니다.');
     },
     onError: (error) => {
@@ -138,6 +141,7 @@ export function useDeleteDiary() {
       queryClient.invalidateQueries({
         queryKey: [...diaryKeys.all, 'monthly'],
       });
+      queryClient.invalidateQueries({ queryKey: mindmapKeys.all });
       toast.success('일기가 삭제되었습니다.');
     },
     onError: (error) => {

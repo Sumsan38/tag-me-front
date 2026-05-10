@@ -31,6 +31,7 @@ import type { InfiniteData } from '@tanstack/react-query';
 import { useToast } from '@/hooks/useToast';
 import { getErrorMessage } from '@/api/error';
 import * as feedApi from '@/api/feed';
+import { mindmapKeys } from '@/hooks/useMindmap';
 import type {
   CreateFeedRequest,
   UpdateFeedRequest,
@@ -114,6 +115,7 @@ export function useCreateFeed() {
     mutationFn: (data: CreateFeedRequest) => feedApi.createFeed(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: feedKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: mindmapKeys.all });
       toast.success('게시글이 등록되었습니다.');
     },
     onError: (error) => {
@@ -139,6 +141,7 @@ export function useUpdateFeed() {
         queryKey: feedKeys.detail(variables.id),
       });
       queryClient.invalidateQueries({ queryKey: feedKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: mindmapKeys.all });
       toast.success('게시글이 수정되었습니다.');
     },
     onError: (error) => {
@@ -161,6 +164,7 @@ export function useDeleteFeed() {
     onSuccess: (_, deletedId) => {
       queryClient.removeQueries({ queryKey: feedKeys.detail(deletedId) });
       queryClient.invalidateQueries({ queryKey: feedKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: mindmapKeys.all });
       toast.success('게시글이 삭제되었습니다.');
     },
     onError: (error) => {
@@ -229,6 +233,10 @@ export function useLikeFeed() {
       );
 
       return { prevDetail, prevPublic, prevFollowing };
+    },
+
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: mindmapKeys.all });
     },
 
     onError: (error, feedId, context) => {
@@ -310,6 +318,10 @@ export function useUnlikeFeed() {
       return { prevDetail, prevPublic, prevFollowing };
     },
 
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: mindmapKeys.all });
+    },
+
     onError: (error, feedId, context) => {
       if (context?.prevDetail) {
         queryClient.setQueryData(feedKeys.detail(feedId), context.prevDetail);
@@ -362,6 +374,7 @@ export function useCreateComment() {
         queryKey: feedKeys.detail(variables.feedId),
       });
       queryClient.invalidateQueries({ queryKey: feedKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: mindmapKeys.all });
     },
     onError: (error) => {
       toast.error(getErrorMessage(error));
@@ -400,6 +413,7 @@ export function useDeleteComment() {
         queryKey: feedKeys.detail(variables.feedId),
       });
       queryClient.invalidateQueries({ queryKey: feedKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: mindmapKeys.all });
       toast.success('댓글이 삭제되었습니다.');
     },
     onError: (error) => {
@@ -455,6 +469,7 @@ export function useCreateReply() {
       queryClient.invalidateQueries({
         queryKey: feedKeys.comments(variables.feedId),
       });
+      queryClient.invalidateQueries({ queryKey: mindmapKeys.all });
     },
     onError: (error) => {
       toast.error(getErrorMessage(error));
@@ -509,6 +524,10 @@ export function useLikeComment() {
       return { prev, cacheKey };
     },
 
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: mindmapKeys.all });
+    },
+
     onError: (error, _, context) => {
       if (context?.prev) {
         queryClient.setQueryData(context.cacheKey, context.prev);
@@ -560,6 +579,10 @@ export function useUnlikeComment() {
       }
 
       return { prev, cacheKey };
+    },
+
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: mindmapKeys.all });
     },
 
     onError: (error, _, context) => {
