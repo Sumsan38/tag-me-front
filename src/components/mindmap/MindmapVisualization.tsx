@@ -142,20 +142,22 @@ export default function MindmapVisualization({
       }))
       .filter((l) => l.source && l.target);
 
+    // Force 객체들을 명시적으로 보관 — drag 중 일시 제거 후 drag end 시 복원하기 위함.
+    const linkForce = d3.forceLink<SimNode, SimLink>(simLinks)
+      .id((d) => d.id)
+      .distance((l) => {
+        const s = l.source as SimNode;
+        const t = l.target as SimNode;
+        return 140 + rScale(s.data?.totalCount ?? 5) + rScale(t.data?.totalCount ?? 5);
+      })
+      .strength(0.25);
+    const chargeForce = d3.forceManyBody<SimNode>().strength(-350);
+    const centerForce = d3.forceCenter<SimNode>(simWidth / 2, simHeight / 2).strength(0.05);
+
     const sim = d3.forceSimulation<SimNode>(simNodes)
-      .force(
-        'link',
-        d3.forceLink<SimNode, SimLink>(simLinks)
-          .id((d) => d.id)
-          .distance((l) => {
-            const s = l.source as SimNode;
-            const t = l.target as SimNode;
-            return 140 + rScale(s.data?.totalCount ?? 5) + rScale(t.data?.totalCount ?? 5);
-          })
-          .strength(0.25),
-      )
-      .force('charge', d3.forceManyBody().strength(-350))
-      .force('center', d3.forceCenter(simWidth / 2, simHeight / 2).strength(0.05))
+      .force('link', linkForce)
+      .force('charge', chargeForce)
+      .force('center', centerForce)
       .force('collision', d3.forceCollide<SimNode>().radius((d) => rScale(d.data.totalCount) + 14));
 
     // 노드 클램프 영역: simulation 영역 전체가 아니라 initial zoom transform이
@@ -231,11 +233,23 @@ export default function MindmapVisualization({
           .on('start', (event, d) => {
             if (!event.active) sim.alphaTarget(0.3).restart();
             d.fx = d.x; d.fy = d.y;
+            // 드래그 중에는 collision만 활성. charge/link/center는 떼어내
+            // 다른 노드가 "부딪힐 때만" 반응하고, 떨어진 노드는 가만히 있도록 한다.
+            sim.force('charge', null);
+            sim.force('link', null);
+            sim.force('center', null);
           })
           .on('drag', (event, d) => { d.fx = event.x; d.fy = event.y; })
           .on('end', (event, d) => {
-            if (!event.active) sim.alphaTarget(0);
             d.fx = null; d.fy = null;
+            // 드래그 종료 시 alpha를 즉시 0으로 셋해 simulation을 정지.
+            // forces를 복원하지 않는 이유: 복원하면 alpha cooling 동안 charge/link/center가
+            // fire되어 무관한 노드들이 일제히 재정렬되는 부작용이 생긴다.
+            // 새 데이터(nodes/edges 변경) 진입 시 useEffect가 simulation을 새로 만들며 forces도 함께 셋된다.
+            if (!event.active) {
+              sim.alphaTarget(0);
+              sim.alpha(0);
+            }
           }),
       )
       .on('click', (event, d) => {
