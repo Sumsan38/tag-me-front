@@ -158,17 +158,25 @@ export default function MindmapVisualization({
       .force('center', d3.forceCenter(simWidth / 2, simHeight / 2).strength(0.05))
       .force('collision', d3.forceCollide<SimNode>().radius((d) => rScale(d.data.totalCount) + 14));
 
-    // 노드가 캔버스 경계 밖으로 나가지 않도록 위치+속도 동시 클램프
+    // 노드 클램프 영역: simulation 영역 전체가 아니라 initial zoom transform이
+    // viewport에 매핑하는 영역(simulation 중앙의 width×height 박스)으로 좁힌다.
+    // 이렇게 하지 않으면 엣지가 0개인 isolated 노드가 charge force에 밀려
+    // simulation 영역 가장자리(viewport 밖)로 튕겨나가 화면에서 사라진다.
+    const clampMinX = (simWidth - width) / 2;
+    const clampMaxX = clampMinX + width;
+    const clampMinY = (simHeight - height) / 2;
+    const clampMaxY = clampMinY + height;
+
     sim.force('boundary', () => {
       for (const node of simNodes) {
         const r = rScale(node.data?.totalCount ?? 5) + 24;
         if (node.x != null) {
-          if (node.x < r)         { node.x = r;         if ((node.vx ?? 0) < 0) node.vx = 0; }
-          if (node.x > simWidth - r) { node.x = simWidth - r; if ((node.vx ?? 0) > 0) node.vx = 0; }
+          if (node.x < clampMinX + r) { node.x = clampMinX + r; if ((node.vx ?? 0) < 0) node.vx = 0; }
+          if (node.x > clampMaxX - r) { node.x = clampMaxX - r; if ((node.vx ?? 0) > 0) node.vx = 0; }
         }
         if (node.y != null) {
-          if (node.y < r)           { node.y = r;           if ((node.vy ?? 0) < 0) node.vy = 0; }
-          if (node.y > simHeight - r) { node.y = simHeight - r; if ((node.vy ?? 0) > 0) node.vy = 0; }
+          if (node.y < clampMinY + r) { node.y = clampMinY + r; if ((node.vy ?? 0) < 0) node.vy = 0; }
+          if (node.y > clampMaxY - r) { node.y = clampMaxY - r; if ((node.vy ?? 0) > 0) node.vy = 0; }
         }
       }
     });
